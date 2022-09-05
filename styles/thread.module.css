@@ -1,0 +1,79 @@
+.messageInput {
+    background-color: rgb(86, 199, 216);
+    border: none;
+    height: 6vh;
+    width: 40vw;
+    border-radius: 1rem 0rem 0rem 1rem;
+}
+
+.sendMessage {
+    width: 10vw;
+    height: 6vh;
+    border: none;
+    background-color: rgb(43, 220, 87);
+    border-radius: 0rem 1rem 1rem 0rem;
+}
+
+.sendMessage:hover {
+    background-color: red;
+}
+
+
+.messageText {
+    word-wrap: break-word;
+    max-width: 50vw;
+}
+
+.user{
+   text-align: right;
+    margin: 0;
+}
+
+.main{
+    margin-bottom: 5rem;
+    margin-top: 5rem;
+}
+
+.imgContainer {
+    background-color: white;
+    width: 4rem;
+    margin-right: 1rem;
+    display: flex;
+    justify-content: center;
+    border-radius: 3rem;
+    overflow: hidden;
+    align-items: center;
+    justify-content: center;
+    height: 4rem;
+}
+
+.row1 {
+    display: flex;
+}
+
+.messageContainer {
+    background-color: rgba(126, 171, 182, 0.646);
+    width: fit-content;
+    padding: .5rem 1rem .5rem 1rem;
+    border-radius: 1rem;
+    margin: 1rem 0rem 2rem 1rem;
+    color: white;
+}
+
+.profileIMG {
+    height: fit-content;
+    width: 4rem;
+}
+
+.sendMessage:active {
+    background-color: blue;
+}
+
+.messageForm {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    padding-bottom: 1rem;
+    position: fixed;
+    bottom: 0;
+}
