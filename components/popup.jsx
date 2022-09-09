@@ -76,7 +76,7 @@ export default function Page({ setPopup }) {
 
             querySnapshot.forEach(async (item) => {
                 const userRef = doc(firestore, "users", item.id);
-                membersRef.push(userRef);
+                membersRef.push(item.id);
                 const memberThreads = (await getDoc(userRef)).data().threads; setDoc(userRef, {
                     threads: memberThreads.concat(groupId)
                 }, { merge: true })
@@ -88,6 +88,22 @@ export default function Page({ setPopup }) {
             createdAt: new Date(),
             messages: [],
             latestMessage: new Date()
+        })
+        .then(function(){
+            console.log("Fin1")
+        });
+        console.log({
+            groupName: groupName,
+            members: membersRef,
+            createdAt: new Date(),
+            messages: [],
+            latestMessage: new Date()
+        })
+        setDoc(doc(firestore, "threadsId", groupId), {
+            id: groupId
+        })
+        .then(function(){
+            console.log("Fin")
         });
         setPopup(false)
     }

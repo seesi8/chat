@@ -9,11 +9,11 @@ import styles from '../styles/thread.module.css';
 import { uuidv4 } from "@firebase/util";
 import { useDocument } from "react-firebase-hooks/firestore";
 
-export default function thread({ preThread }) {
-
+export default function thread({ threadId }) {
+  console.log("here")
   const { user, data } = useContext(UserContext)
   const bottomOfMessages = createRef()
-  const [thread, setThread] = useState(preThread[0])
+  const [thread, setThread] = useState()
   const [message, setMessage] = useState("")
   const [valid, setValid] = useState(false)
   const router = useRouter()
@@ -21,8 +21,8 @@ export default function thread({ preThread }) {
   const checkUser = async () => {
     if (auth.currentUser && auth.currentUser.uid) {
       const userThreads = (await getDoc(doc(firestore, "users", auth.currentUser.uid))).data().threads
-      if (!userThreads.includes(preThread[0].id)){
-        router.push("/login")
+      if (!userThreads.includes(threadId)){
+        //router.push("/login")
       }
       else{
         setValid(true)
@@ -35,7 +35,7 @@ export default function thread({ preThread }) {
 
   const [value, loading, error] = 
     useDocument(
-    doc(firestore, 'threads', preThread[0].id),
+    doc(firestore, 'threads', threadId),
     {
       snapshotListenOptions: { includeMetadataChanges: true },
     }
@@ -44,7 +44,7 @@ export default function thread({ preThread }) {
   useEffect(() => {
     if (value) {
       let steamData = fixDate(value.data())[0]
-      steamData.id = preThread[0].id
+      steamData.id = threadId
       setThread(steamData)
       bottomOfMessages.current?.scrollIntoView({ behavior: 'smooth' })
     }
@@ -82,7 +82,7 @@ export default function thread({ preThread }) {
   return (
 
     <main className={styles.main}>
-      {thread.messages &&
+      {thread &&
         thread.messages.map((el) =>
           <div className={styles.messageContainer} key={uuidv4()}>
             <p className={styles.user}>{el.sentBy.username}</p>
@@ -112,29 +112,15 @@ export default function thread({ preThread }) {
 
 export async function getStaticProps({ params }) {
   const { thread } = params;
-  const projectsRef = doc(firestore, "threads", thread)
-  const projectsSnap = await getDoc(projectsRef);
-  let data = undefined;
 
-  if (projectsSnap.data() != undefined) {
-    data = projectsSnap.data()
-    data.id = thread
-    data = await fixDate(data)
-
-
-
-
-  } else {
-    data = "404"
-  }
   return {
-    props: { preThread: data },
+    props: { threadId: thread },
     revalidate: 1,
   }
 }
 
 export async function getStaticPaths() {
-  const projectsRef = query(collection(firestore, "threads"))
+  const projectsRef = query(collection(firestore, "threadsId"))
   const projectsSnap = await getDocs(projectsRef);
   let paths = []
 

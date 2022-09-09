@@ -18,9 +18,6 @@ import { set } from 'react-hook-form';
 function Thread(thread) {
   const [threadData, setThreadData] = useState(thread.thread)
 
-
-  console.log(threadData)
-
   return (
     <Link href={threadData.id ? threadData.id : "/"}>
       <button className={styles.thread}>
@@ -38,13 +35,17 @@ export default function Home() {
 
 
   const loadThreads = async () => {
-    if (!data) return
+    if (!data || !user) return
     const localThreads = []
+    console.log(user.uid, data.threads)
     for(let i in data.threads){
+      console.log(i)
       let docData = (await getDoc(doc(firestore, "threads" , data.threads[i]))).data()
       docData.id = data.threads[i]
+      console.log("thing " + i)
       localThreads.push(docData)
     }
+    console.log("done")
     localThreads.sort((a, b) => (a.latestMessage < b.latestMessage ? 1 : -1))
     setThreads(localThreads)
   }
