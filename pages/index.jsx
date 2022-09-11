@@ -13,7 +13,6 @@ import { useUserData } from '../lib/hooks';
 import { uuidv4 } from "@firebase/util";
 import { firstore } from '../lib/firebase'
 import Link from 'next/link';
-import { set } from 'react-hook-form';
 
 function Thread(thread) {
   const [threadData, setThreadData] = useState(thread.thread)

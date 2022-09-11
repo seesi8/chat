@@ -19,13 +19,3 @@ html{
   background-color: #12181B;
   background: cover fixed;
 }
-
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
-  body {
-    color: white;
-    background: black;
-  }
-}

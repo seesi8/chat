@@ -1,4 +1,4 @@
-import { query, getDoc, getDocs, doc, collection, setDoc } from "firebase/firestore";
+import { query, getDoc, getDocs, doc, collection, setDoc, orderBy } from "firebase/firestore";
 import { createRef, useContext, useEffect, useState } from "react";
 import { UserContext } from "../lib/context";
 import { auth, firestore } from "../lib/firebase";
@@ -44,7 +44,7 @@ export default function thread({ threadId }) {
 
   const [messagesValue, messagesLoading, messagesError] =
     useCollection(
-      collection(firestore, 'threads', threadId, 'messages'),
+      query(collection(firestore, 'threads', threadId, 'messages'), orderBy("timeSent")),
       {
         snapshotListenOptions: { includeMetadataChanges: true },
       }
