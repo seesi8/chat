@@ -7,12 +7,13 @@ import Image from 'next/image';
 import { useRouter } from 'next/router'
 import styles from '../styles/thread.module.css';
 import { uuidv4 } from "@firebase/util";
-import { useDocument } from "react-firebase-hooks/firestore";
+import { useDocument, useCollection } from "react-firebase-hooks/firestore";
 
 export default function thread({ threadId }) {
   console.log("here")
   const { user, data } = useContext(UserContext)
   const bottomOfMessages = createRef()
+  const [messages, setMessages] = useState([])
   const [thread, setThread] = useState()
   const [message, setMessage] = useState("")
   const [valid, setValid] = useState(false)
@@ -21,10 +22,10 @@ export default function thread({ threadId }) {
   const checkUser = async () => {
     if (auth.currentUser && auth.currentUser.uid) {
       const userThreads = (await getDoc(doc(firestore, "users", auth.currentUser.uid))).data().threads
-      if (!userThreads.includes(threadId)){
+      if (!userThreads.includes(threadId)) {
         //router.push("/login")
       }
-      else{
+      else {
         setValid(true)
       }
     }
@@ -33,13 +34,21 @@ export default function thread({ threadId }) {
   checkUser()
 
 
-  const [value, loading, error] = 
+  const [value, loading, error] =
     useDocument(
-    doc(firestore, 'threads', threadId),
-    {
-      snapshotListenOptions: { includeMetadataChanges: true },
-    }
-  );
+      doc(firestore, 'threads', threadId),
+      {
+        snapshotListenOptions: { includeMetadataChanges: true },
+      }
+    );
+
+  const [messagesValue, messagesLoading, messagesError] =
+    useCollection(
+      collection(firestore, 'threads', threadId, 'messages'),
+      {
+        snapshotListenOptions: { includeMetadataChanges: true },
+      }
+    );
 
   useEffect(() => {
     if (value) {
@@ -50,29 +59,37 @@ export default function thread({ threadId }) {
     }
   }, [value]);
 
+  useEffect(() => {
+    if (messagesValue) {
+      let currentMessages = messagesValue.docs
+      for (let messageIndex in currentMessages) {
+        currentMessages[messageIndex] = currentMessages[messageIndex].data()
+        currentMessages[messageIndex].timeSent = ((new Date(currentMessages[messageIndex].timeSent.toDate())).toLocaleDateString()) + " " + ((new Date(currentMessages[messageIndex].timeSent.toDate())).toLocaleTimeString())
+      }
+      setMessages(currentMessages)
+      bottomOfMessages.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messagesValue]);
+
 
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if(!valid){
+    if (!valid) {
       return
     }
     if (!message) {
       return
     }
-    const docSnapShot = await getDoc(doc(firestore, "threads", thread.id));
-    await setDoc(doc(firestore, "threads", thread.id), {
-      messages: docSnapShot.data().messages.concat({
-        message: message,
-        timeSent: new Date(),
-        sentBy: {
-          user: user.uid,
-          profileIMG: data.profileIMG,
-          username: data.displayName
-        }
-      }),
+    await setDoc(doc(firestore, "threads", thread.id, "messages", uuidv4()), {
+      message: message,
+      timeSent: new Date(),
+      sentBy: {
+        user: user.uid,
+        profileIMG: data.profileIMG,
+        username: data.displayName
+      },
       latestMessage: new Date()
-
     }, { merge: true })
     setMessage("")
   }
@@ -82,8 +99,8 @@ export default function thread({ threadId }) {
   return (
 
     <main className={styles.main}>
-      {thread &&
-        thread.messages.map((el) =>
+      {thread && messages &&
+        messages.map((el) =>
           <div className={styles.messageContainer} key={uuidv4()}>
             <p className={styles.user}>{el.sentBy.username}</p>
             <div className={styles.row1}>

@@ -7,7 +7,7 @@ import { UserContext } from '../lib/context'
 import { uuidv4 } from "@firebase/util"
 import { doc, getDoc, setDoc, getDocs, orderBy, limit } from "firebase/firestore"
 
-export default function Page({ setPopup }) {
+export default function Popup({ setPopup }) {
     const { user, data } = useContext(UserContext)
     const [members, setMembers] = useState([data.username])
     const [groupName, setGroupName] = useState([])
@@ -86,7 +86,6 @@ export default function Page({ setPopup }) {
             groupName: groupName,
             members: membersRef,
             createdAt: new Date(),
-            messages: [],
             latestMessage: new Date()
         })
         .then(function(){
@@ -96,7 +95,6 @@ export default function Page({ setPopup }) {
             groupName: groupName,
             members: membersRef,
             createdAt: new Date(),
-            messages: [],
             latestMessage: new Date()
         })
         setDoc(doc(firestore, "threadsId", groupId), {
