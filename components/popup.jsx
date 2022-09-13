@@ -1,110 +1,107 @@
-import styles from "../styles/popup.module.css"
-import Image from 'next/image'
-import { useEffect, useContext, useState } from "react"
-import { firestore } from "../lib/firebase"
+import styles from "../styles/popup.module.css";
+import Image from 'next/image';
+import { useEffect, useContext, useState } from "react";
+import { firestore } from "../lib/firebase";
 import { collection, query, where } from "firebase/firestore";
-import { UserContext } from '../lib/context'
-import { uuidv4 } from "@firebase/util"
-import { doc, getDoc, setDoc, getDocs, orderBy, limit } from "firebase/firestore"
+import { UserContext } from '../lib/context';
+import { uuidv4 } from "@firebase/util";
+import { doc, getDoc, setDoc, getDocs, orderBy, limit, writeBatch } from "firebase/firestore";
 
 export default function Popup({ setPopup }) {
-    const { user, data } = useContext(UserContext)
-    const [members, setMembers] = useState([data.username])
-    const [groupName, setGroupName] = useState([])
-    const [currentInput, setCurrentInput] = useState("")
-    const [friends, setFriends] = useState([])
-    const [suggestions, setSuggestion] = useState([])
+    const { user, data } = useContext(UserContext);
+    const [members, setMembers] = useState([{ uid: user.uid, username: data.username }]);
+    const [groupName, setGroupName] = useState([]);
+    const [currentInput, setCurrentInput] = useState("");
+    const [friends, setFriends] = useState([]);
+    const [suggestions, setSuggestion] = useState([]);
+
+    function contains(list, element) {
+        return list.some(elem => {
+            return JSON.stringify(element) === JSON.stringify(elem);
+        });
+    }
+
 
     const getData = async () => {
         const docSnap = await getDoc(doc(firestore, "users", user.uid));
         let docData = docSnap.data();
-        docData.id = docSnap.id
-        let localFriends = friends
+        docData.id = docSnap.id;
+        let localFriends = friends;
         for (let i = 0; i < docData.friends.length; i++) {
-            console.log(docData.friends[1])
-            const friendDocSnap = await getDoc(doc(firestore,"users", docData.friends[i]));
-            localFriends.push(friendDocSnap.data())
+            console.log(docData.friends[1]);
+            const friendDocSnap = await getDoc(doc(firestore, "users", docData.friends[i]));
+            let friendData = friendDocSnap.data();
+            friendData.uid = friendDocSnap.id;
+            localFriends.push(friendData);
         }
-        setFriends(localFriends)
-    }
+        setFriends(localFriends);
+    };
 
     useEffect(() => {
         getData();
-    }, [])
+    }, []);
 
     useEffect(() => {
-        setSuggestion([])
-        let currentSuggestions = []
+        setSuggestion([]);
+        let currentSuggestions = [];
         for (let i = 0; i < friends.length; i++) {
-            if (friends[i].username.includes(currentInput)) {
-                currentSuggestions.push(friends[i])
+            if (friends[i].username.includes(currentInput) && !friends[i].uid.includes(user.uid)) {
+                currentSuggestions.push(friends[i]);
             }
         }
-        setSuggestion(currentSuggestions)
+        setSuggestion(currentSuggestions);
         if (currentInput == "") {
-            setSuggestion([])
+            setSuggestion([]);
         }
-        console.log(suggestions)
-    }, [currentInput])
+        console.log(suggestions);
+    }, [currentInput]);
 
     const submitUsername = (e) => {
-        e.preventDefault()
+        e.preventDefault();
         if (suggestions[0] != undefined) {
-            if (members.includes(suggestions[0].username) == false) {
-                setMembers(members.concat(suggestions[0].username))
+            if (!contains(members, { uid: suggestions[0].uid, username: suggestions[0].username })) {
+                setMembers(members.concat({ uid: suggestions[0].uid, username: suggestions[0].username }));
             }
         }
-        console.log(members)
-        setCurrentInput("")
-    }
+        console.log(members);
+        setCurrentInput("");
+    };
 
-    const submitMember = (e, username) => {
-        e.preventDefault()
-        if (members.includes(username) == false) {
-            setMembers(members.concat(username))
+    const submitMember = (e, item) => {
+        e.preventDefault();
+        console.log(members);
+        console.log(contains(members, { uid: item.uid, username: item.username }));
+        console.log({ uid: item.uid, username: item.username });
+        if (!contains(members, { uid: item.uid, username: item.username })) {
+            console.log(members);
+            console.log(contains(members, { uid: item.uid, username: item.username }));
+            console.log({ uid: item.uid, username: item.username });
+            setMembers(members.concat({ uid: item.uid, username: item.username }));
         }
-        setCurrentInput("")
-    }
+        setCurrentInput("");
+    };
 
     const createGroup = async () => {
-        let membersRef = []
-        const groupId = uuidv4()
-        for (let i = 0; i < members.length; i++) {
-            const usersRef = collection(firestore, "users");
-            const q = query(usersRef, where("username", "==", members[i]), orderBy("lastActive"), limit(1));
-            const querySnapshot = await getDocs(q);
-
-            querySnapshot.forEach(async (item) => {
-                const userRef = doc(firestore, "users", item.id);
-                membersRef.push(item.id);
-                const memberThreads = (await getDoc(userRef)).data().threads; setDoc(userRef, {
-                    threads: memberThreads.concat(groupId)
-                }, { merge: true })
-            });
+        const groupId = uuidv4();
+        let memberUID = [];
+        for (let i in members) {
+            memberUID.push(members[i].uid);
         }
-        setDoc(doc(firestore, "threads", groupId), {
+        console.log(memberUID);
+        const batch = writeBatch(firestore);
+        batch.set(doc(firestore, "threads", groupId), {
             groupName: groupName,
-            members: membersRef,
+            members: memberUID,
             createdAt: new Date(),
             latestMessage: new Date()
-        })
-        .then(function(){
-            console.log("Fin1")
         });
-        console.log({
-            groupName: groupName,
-            members: membersRef,
-            createdAt: new Date(),
-            latestMessage: new Date()
-        })
-        setDoc(doc(firestore, "threadsId", groupId), {
-            id: groupId
-        })
-        .then(function(){
-            console.log("Fin")
+        batch.set(doc(firestore, "threadsId", groupId), {
+            id: groupId,
+            members: memberUID
         });
-        setPopup(false)
-    }
+        await batch.commit();
+        setPopup(false);
+    };
 
     return (
         <div className={styles.popupContainer}>
@@ -119,7 +116,7 @@ export default function Popup({ setPopup }) {
                         {
                             members.map((item) =>
                                 <div className={styles.memberItem} key={uuidv4()}>
-                                    <p className={styles.memberUsername}>{`@${item}`}</p>
+                                    <p className={styles.memberUsername}>{`@${item.username}`}</p>
                                 </div>)
                         }
                         <input placeholder="Member Username" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} className={styles.usersType} type="text" />
@@ -128,7 +125,7 @@ export default function Popup({ setPopup }) {
                         {
                             suggestions.map((item) =>
                                 <li className={styles.suggestionListItem} key={item.username}>
-                                    <button type="button" className={styles.suggestionListItemButton} onClick={(e) => submitMember(e, item.username)} >
+                                    <button type="button" className={styles.suggestionListItemButton} onClick={(e) => submitMember(e, item)} >
                                         <div className={styles.imageContainer}>
                                             <Image src={item.profileIMG} layout="fill" objectFit='contain' />
                                         </div>
@@ -143,7 +140,7 @@ export default function Popup({ setPopup }) {
                 </button>
             </div>
         </div>
-    )
+    );
 }
 
 

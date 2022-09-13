@@ -1,12 +1,12 @@
-import { useState } from 'react'
-import styles from '../styles/create.module.css'
-import { auth, firestore } from '../lib/firebase'
+import { useState } from 'react';
+import styles from '../styles/create.module.css';
+import { auth, firestore } from '../lib/firebase';
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, limit, orderBy, setDoc,getDocs, collection, query, where } from "firebase/firestore";
-import { useRouter } from 'next/router'
+import { doc, limit, orderBy, setDoc, getDocs, collection, query, where, writeBatch } from "firebase/firestore";
+import { useRouter } from 'next/router';
 
 
 
@@ -23,24 +23,24 @@ function uploadImage(e, setStoreageUrl) {
     uploadBytes(storageRef, file).then((snapshot) => {
         getDownloadURL(snapshot.ref)
             .then((url) => {
-                setStoreageUrl(url)
-            })
+                setStoreageUrl(url);
+            });
     });
 }
 
 
 export default function login({ }) {
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
-    const [displayName, setDisplayName] = useState('')
-    const [storageUrl, setStoreageUrl] = useState("")
-    const router = useRouter()
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [displayName, setDisplayName] = useState('');
+    const [storageUrl, setStoreageUrl] = useState("");
+    const router = useRouter();
 
     const submit = async (e) => {
-        e.preventDefault()
+        e.preventDefault();
         if (!storageUrl) {
-            toast.error("No Profile Picture")
-            return
+            toast.error("No Profile Picture");
+            return;
         }
         createUserWithEmailAndPassword(auth, email, password)
             .then(async (userCredential) => {
@@ -50,63 +50,64 @@ export default function login({ }) {
                 const q = query(usersRef, where("displayName", "==", displayName), orderBy("username", "asc", limit(1)));
                 const querySnapshot = await getDocs(q);
 
-                let username = ""
-
-                console.log(querySnapshot)
+                let username = "";
                 if (querySnapshot.docs.length == 0) {
-                    console.log("no username")
-                    username = displayName
+                    console.log("no username");
+                    username = displayName;
                 } else {
-                    console.log(querySnapshot)
+                    console.log(querySnapshot);
                     querySnapshot.forEach((doc) => {
-                        console.log(doc.data())
-                        let index = doc.data().username.split(displayName)[1]
+                        console.log(doc.data());
+                        let index = doc.data().username.split(displayName)[1];
                         if (index == "") {
-                            console.log(doc.id, displayName)
-                            index = "0"
+                            console.log(doc.id, displayName);
+                            index = "0";
                         }
-                        
-                        username = displayName.concat((parseInt(index)+1).toString());
+
+                        username = displayName.concat((parseInt(index) + 1).toString());
                     });
                 }
-
-                await setDoc(doc(firestore, "users", userUID), {
+                const batch = writeBatch(firestore);
+                batch.set(doc(firestore, "users", userUID), {
                     displayName: displayName,
                     username: username,
                     profileIMG: storageUrl,
                     email: email,
-                    threads: [],
                     creationDate: new Date(),
                     lastActive: new Date(),
                     friends: []
                 });
+                batch.set(doc(firestore, "usernames", username), {
+                    uid: userUID
+                });
 
-                router.push("/")
+                await batch.commit();
+                router.push("/");
             })
             .catch((error) => {
                 const errorCode = error.code;
                 const errorMessage = error.message;
-                console.log(error)
+                console.log(error);
                 if (errorCode.includes("email-already-in-use")) {
-                    toast.error("Invalid Email")
-                    return
+                    toast.error("Invalid Email");
+                    return;
                 }
                 if (errorCode.includes("email")) {
-                    toast.error("Invalid Email")
-                    return
+                    toast.error("Invalid Email");
+                    return;
                 }
                 else if (errorCode.includes("password")) {
-                    toast.error("Invalid Password")
-                    return
+                    toast.error("Invalid Password");
+                    return;
                 }
                 else {
-                    toast.error("Invalid Info")
+                    toast.error("Invalid Info");
                 }
-                console.log(errorCode)
-                return
+                console.log(errorCode);
+                return;
             });
 
-    }
+    };
 
 
 
@@ -123,5 +124,5 @@ export default function login({ }) {
                 <button disabled={storageUrl ? false : true} className={styles.button} >Submit</button>
             </form>
         </main>
-    )
+    );
 }

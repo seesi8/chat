@@ -6,13 +6,14 @@ import { auth } from '../lib/firebase';
 import Login from '../components/login'
 import { firestore } from '../lib/firebase';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { collection, doc, getDoc } from "firebase/firestore";
+import { collection, doc, getDoc, query, where } from "firebase/firestore";
 import { useContext, useEffect, useState } from 'react';
 import { UserContext } from '../lib/context';
 import { useUserData } from '../lib/hooks';
 import { uuidv4 } from "@firebase/util";
 import { firstore } from '../lib/firebase'
 import Link from 'next/link';
+import { useCollection } from 'react-firebase-hooks/firestore';
 
 function Thread(thread) {
   const [threadData, setThreadData] = useState(thread.thread)
@@ -30,18 +31,26 @@ export default function Home() {
 
   const { user, data } = useContext(UserContext)
 
-  const [threads, setThreads] = useState(data && data.threads)
+  const [threads, setThreads] = useState()
 
+  const [usersThreads, usersThreadsLoading, usersThreadsError] =
+  useCollection(
+    query(collection(firestore, 'threadsId'), where("members", "array-contains", user && user.uid)),
+    {
+      snapshotListenOptions: { includeMetadataChanges: true },
+    }
+  );
 
   const loadThreads = async () => {
-    if (!data || !user) return
+    if (!data || !user || !usersThreads) return
     const localThreads = []
-    console.log(user.uid, data.threads)
-    for(let i in data.threads){
-      console.log(i)
-      let docData = (await getDoc(doc(firestore, "threads" , data.threads[i]))).data()
-      docData.id = data.threads[i]
-      console.log("thing " + i)
+    for(let i in usersThreads.docs){
+
+      if(!usersThreads.docs[i].data().members.includes(user.uid)){
+        return
+      }
+      let docData = (await getDoc(doc(firestore, "threads" , usersThreads.docs[i].id))).data()
+      docData.id = usersThreads.docs[i].id
       localThreads.push(docData)
     }
     console.log("done")
@@ -52,7 +61,7 @@ export default function Home() {
   
   useEffect(() => {
     loadThreads()
-  }, [data])
+  }, [usersThreads])
 
   if (!user) {
     return (
