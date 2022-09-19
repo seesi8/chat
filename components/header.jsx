@@ -1,16 +1,16 @@
-import styles from '../styles/header.module.css'
-import Image from 'next/image'
-import Popup from '../components/popup'
-import Link from 'next/link'
-import Add from '../components/add'
-import { useState, useContext } from 'react'
-import { UserContext } from '../lib/context'
+import styles from '../styles/header.module.css';
+import Image from 'next/image';
+import Popup from '../components/popup';
+import Link from 'next/link';
+import Add from '../components/add';
+import { useState, useContext } from 'react';
+import { UserContext } from '../lib/context';
 
 
-export default function header({ }) {
-    const [popup, setPopup] = useState(false)
-    const [add, setAdd] = useState(false)
-    const { user, data } = useContext(UserContext)
+export default function Header({ }) {
+    const [popup, setPopup] = useState(false);
+    const [add, setAdd] = useState(false);
+    const { user, data } = useContext(UserContext);
 
     return (
         <>
@@ -55,5 +55,5 @@ export default function header({ }) {
                 </>}
             </main>
         </>
-    )
+    );
 }

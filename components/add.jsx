@@ -1,72 +1,72 @@
-import styles from "../styles/add.module.css"
-import Image from 'next/image'
-import { useEffect, useContext, useState } from "react"
-import { firestore } from "../lib/firebase"
+import styles from "../styles/add.module.css";
+import Image from 'next/image';
+import { useEffect, useContext, useState } from "react";
+import { firestore } from "../lib/firebase";
 import { collection, query, where } from "firebase/firestore";
-import { UserContext } from '../lib/context'
-import { async, uuidv4 } from "@firebase/util"
-import { doc, getDoc, setDoc, getDocs, orderBy, limit } from "firebase/firestore"
+import { UserContext } from '../lib/context';
+import { async, uuidv4 } from "@firebase/util";
+import { doc, getDoc, setDoc, getDocs, orderBy, limit } from "firebase/firestore";
 import { removeFriend } from "../lib/hooks";
 
-export default function Page({ setPopup }) {
-    const { user, data } = useContext(UserContext)
-    const [members, setMembers] = useState([])
-    const [currentInput, setCurrentInput] = useState("")
-    const [people, setPeople] = useState([])
-    const [suggestions, setSuggestion] = useState([])
+export default function Add({ setPopup }) {
+    const { user, data } = useContext(UserContext);
+    const [members, setMembers] = useState([]);
+    const [currentInput, setCurrentInput] = useState("");
+    const [people, setPeople] = useState([]);
+    const [suggestions, setSuggestion] = useState([]);
 
     const getData = async () => {
         const querySnapshot = await getDocs(query(collection(firestore, "users")));
-        const currentMembers = []
+        const currentMembers = [];
         querySnapshot.forEach((doc) => {
-            let docData = doc.data()
-            docData.id = doc.id
-            currentMembers.push(docData)
+            let docData = doc.data();
+            docData.id = doc.id;
+            currentMembers.push(docData);
         });
-        setPeople(currentMembers)
+        setPeople(currentMembers);
 
-    }
+    };
 
     useEffect(() => {
         getData();
-    }, [])
+    }, []);
 
     useEffect(() => {
-        setSuggestion([])
-        let currentSuggestions = []
+        setSuggestion([]);
+        let currentSuggestions = [];
         for (let i = 0; i < people.length; i++) {
             if (people[i].username.includes(currentInput)) {
-                currentSuggestions.push(people[i])
+                currentSuggestions.push(people[i]);
             }
         }
-        setSuggestion(currentSuggestions)
+        setSuggestion(currentSuggestions);
         if (currentInput == "") {
-            setSuggestion([])
+            setSuggestion([]);
         }
-        console.log(suggestions)
-    }, [currentInput])
+        console.log(suggestions);
+    }, [currentInput]);
 
     const submitUsername = (e) => {
-        console.log("NO")
-        e.preventDefault()
+        console.log("NO");
+        e.preventDefault();
         if (suggestions[0] != undefined) {
             if (data.friends.includes(suggestions[0].id) == false) {
-                const userRef = doc(firestore, 'users', user.uid)
-                setDoc(userRef, { friends: data.friends.concat(suggestions[0].id) }, { merge: true })
+                const userRef = doc(firestore, 'users', user.uid);
+                setDoc(userRef, { friends: data.friends.concat(suggestions[0].id) }, { merge: true });
             }
         }
-    }
+    };
 
     const submitFriend = async (e, id) => {
-        console.log("NO")
-        e.preventDefault()
+        console.log("NO");
+        e.preventDefault();
         if (data.friends.includes(id) == false) {
-            const userRef = doc(firestore, 'users', user.uid)
-            await setDoc(userRef, { friends: data.friends.concat(id) }, { merge: true })
+            const userRef = doc(firestore, 'users', user.uid);
+            await setDoc(userRef, { friends: data.friends.concat(id) }, { merge: true });
 
         }
-        console.log(data)
-    }
+        console.log(data);
+    };
 
     return (
         <div className={styles.popupContainer}>
@@ -104,7 +104,7 @@ export default function Page({ setPopup }) {
                 </form>
             </div>
         </div>
-    )
+    );
 }
 
 

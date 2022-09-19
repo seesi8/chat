@@ -1,8 +1,8 @@
-import Login from '../components/login.jsx'
+import Login from '../components/login.jsx';
 
-export default function Page({ }) {
+export default function Login({ }) {
 
     return (
-        <Login/>
-    )
+        <Login />
+    );
 }

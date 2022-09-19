@@ -1,17 +1,17 @@
-import Image from 'next/image'
-import { useContext, useEffect, useState } from 'react'
-import { UserContext } from '../lib/context'
-import styles from '../styles/profile.module.css'
-import { getDoc, doc } from 'firebase/firestore'
-import { firestore } from '../lib/firebase'
-import { uuidv4 } from "@firebase/util"
-import { auth } from '../lib/firebase'
-import { removeFriend } from '../lib/hooks'
-import Login from '../components/login'
+import Image from 'next/image';
+import { useContext, useEffect, useState } from 'react';
+import { UserContext } from '../lib/context';
+import styles from '../styles/profile.module.css';
+import { getDoc, doc } from 'firebase/firestore';
+import { firestore } from '../lib/firebase';
+import { uuidv4 } from "@firebase/util";
+import { auth } from '../lib/firebase';
+import { removeFriend } from '../lib/hooks';
+import Login from '../components/login';
 
 
 function FriendCard(friend) {
-  const { user, data } = useContext(UserContext)
+  const { user, data } = useContext(UserContext);
   return (
     <main className={styles.FriendCardMain}>
       <div className={styles.friendProfileImageContainer}>
@@ -25,45 +25,45 @@ function FriendCard(friend) {
         Remove Friend
       </button>
     </main>
-  )
+  );
 }
 
-export default function Page({ }) {
+export default function Profile({ }) {
 
-  const incrimentValue = 3
+  const incrimentValue = 3;
 
-  const { user, data } = useContext(UserContext)
-  const [friends, setFriends] = useState([])
-  const [currentFriends, setCurrentFriends] = useState(friends)
-  const [friendsNumber, setFriendsNumber] = useState(incrimentValue)
+  const { user, data } = useContext(UserContext);
+  const [friends, setFriends] = useState([]);
+  const [currentFriends, setCurrentFriends] = useState(friends);
+  const [friendsNumber, setFriendsNumber] = useState(incrimentValue);
 
 
   const getData = async () => {
     if (!data) {
-      return
+      return;
     }
-    let localFriends = []
+    let localFriends = [];
     for (let i = 0; i < data.friends.length; i++) {
-      let friendsSnapshot = await getDoc(doc(firestore, "users", data.friends[i]))
+      let friendsSnapshot = await getDoc(doc(firestore, "users", data.friends[i]));
       let friendDocSnapData = friendsSnapshot.data();
-      friendDocSnapData.id = friendsSnapshot.id
-      localFriends.push(friendDocSnapData)
+      friendDocSnapData.id = friendsSnapshot.id;
+      localFriends.push(friendDocSnapData);
     }
-    setFriends(localFriends)
-  }
+    setFriends(localFriends);
+  };
 
   useEffect(() => {
     getData();
-  }, [data])
+  }, [data]);
 
   useEffect(() => {
-    setCurrentFriends(friends.slice(0, friendsNumber))
-  }, [friends, friendsNumber])
+    setCurrentFriends(friends.slice(0, friendsNumber));
+  }, [friends, friendsNumber]);
 
-  if(!user){
-    return(
-      <Login/>
-    )
+  if (!user) {
+    return (
+      <Login />
+    );
   }
 
   return (
@@ -88,6 +88,6 @@ export default function Page({ }) {
         </div>
       </div>
     </main>
-  )
+  );
 }
 

@@ -29,7 +29,7 @@ function uploadImage(e, setStoreageUrl) {
 }
 
 
-export default function login({ }) {
+export default function Create({ }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [displayName, setDisplayName] = useState('');
