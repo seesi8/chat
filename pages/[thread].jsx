@@ -81,7 +81,7 @@ export default function thread({ threadId }) {
     batch.update(doc(firestore, "threads", threadId), {
       latestMessage: new Date()
     });
-
+    console.log(batch);
     await batch.commit();
     setMessage("");
   };
