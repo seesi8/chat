@@ -10,7 +10,7 @@ import { uuidv4 } from "@firebase/util";
 import { useDocument, useCollection } from "react-firebase-hooks/firestore";
 
 export default function Thread({ threadId }) {
-  console.log("here");
+
   const { user, data } = useContext(UserContext);
   const bottomOfMessages = createRef();
   const [messages, setMessages] = useState([]);

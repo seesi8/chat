@@ -1,6 +1,5 @@
 const firebase = require('@firebase/testing');
 const fs = require('fs');
-
 module.exports.setup = async (auth, data) => {
     const projectId = `chat-24ce7`;
     const app = await firebase.initializeTestApp({
@@ -29,13 +28,8 @@ module.exports.setup = async (auth, data) => {
 };
 
 module.exports.teardown = async () => {
-    try {
-        await firebase.clearFirestoreData({
-            projectId: "chat-24ce7"
-        });
-        await Promise.all(firebase.apps().map(app => app.delete()));
-    }
-    catch (err) {
-        console.log(err);
-    }
+    await firebase.clearFirestoreData({
+        projectId: "chat-24ce7"
+    });
+    await Promise.all(firebase.apps().map(app => app.delete()));
 };
