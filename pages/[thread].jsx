@@ -1,13 +1,11 @@
-import { query, getDoc, getDocs, doc, collection, setDoc, orderBy, writeBatch } from "firebase/firestore";
+import { query, getDoc, getDocs, doc, collection, orderBy, writeBatch } from "firebase/firestore";
 import { createRef, useContext, useEffect, useState } from "react";
 import { UserContext } from "../lib/context";
 import { auth, firestore } from "../lib/firebase";
-import { fixDate } from "../lib/hooks";
-import Image from 'next/image';
 import { useRouter } from 'next/router';
 import styles from '../styles/thread.module.css';
 import { uuidv4 } from "@firebase/util";
-import { useDocument, useCollection } from "react-firebase-hooks/firestore";
+import { useCollection } from "react-firebase-hooks/firestore";
 
 export default function Thread({ threadId }) {
 

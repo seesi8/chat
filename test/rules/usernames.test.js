@@ -3,7 +3,7 @@ const { assertFails, assertSucceeds } = require('@firebase/testing');
 
 describe('testing usernamse rules', () => {
     let db;
-    let messages;
+    let usernames;
 
     beforeAll(async () => {
         //empty

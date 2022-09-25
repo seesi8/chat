@@ -3,7 +3,7 @@ const { assertFails, assertSucceeds } = require('@firebase/testing');
 
 describe('testing users rules', () => {
     let db;
-    let messages;
+    let users;
 
     beforeAll(async () => {
         //empty
@@ -259,13 +259,7 @@ describe('testing users rules', () => {
 
         //now set it
         const userData = {
-            displayName: "test",
-            username: "username",
-            profileIMG: "storageUrl",
-            email: "email",
-            creationDate: new Date(),
-            lastActive: new Date(),
-            friends: []
+            friends: ["cool"]
         };
 
 

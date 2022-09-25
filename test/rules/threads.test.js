@@ -4,7 +4,8 @@ const { setDoc, doc } = require('firebase/firestore');
 
 describe('testing threads rules', () => {
     let db;
-    let messages;
+    let threadsId;
+    let threadsDoc;
 
     beforeAll(async () => {
         //empty

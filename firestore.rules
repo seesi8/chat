@@ -36,14 +36,14 @@ service cloud.firestore {
 
     function validUserUpdate(){
       let hadFeilds = request.resource.data.keys().hasAll(['displayName', 'username', 'profileIMG', 'email', 'creationDate', 'lastActive', 'friends']);
-      let validDate = request.resource.data.creationDate.date() == request.time.date() && request.resource.data.lastActive.date() == request.time.date();
+      let validDate = request.resource.data.creationDate.date() <= request.time.date() && request.resource.data.lastActive.date() <= request.time.date();
       let isUser = request.auth.uid == request.resource.id;
       return hadFeilds && isUser && validDate;
     }
 
     function validUser(){
       let hadFeilds = request.resource.data.keys().hasAll(['displayName', 'username', 'profileIMG', 'email', 'creationDate', 'lastActive', 'friends']);
-      let validDate = request.resource.data.creationDate.date() == request.time.date() && request.resource.data.lastActive.date() == request.time.date();
+      let validDate = request.resource.data.creationDate.date() <= request.time.date() && request.resource.data.lastActive.date() <= request.time.date();
       let isUser = request.auth.uid == request.resource.id;
       let createdUsernameDoc = existsAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username));
       let isValidUsername = exists(/databases/$(database)/documents/usernames/$(request.resource.data.username)) == false;

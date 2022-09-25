@@ -2,7 +2,7 @@ import styles from "../styles/add.module.css";
 import Image from 'next/image';
 import { useEffect, useContext, useState } from "react";
 import { firestore } from "../lib/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, updateDoc, where } from "firebase/firestore";
 import { UserContext } from '../lib/context';
 import { async, uuidv4 } from "@firebase/util";
 import { doc, getDoc, setDoc, getDocs, orderBy, limit } from "firebase/firestore";
@@ -47,22 +47,21 @@ export default function Add({ setPopup }) {
     }, [currentInput]);
 
     const submitUsername = (e) => {
-        console.log("NO");
         e.preventDefault();
         if (suggestions[0] != undefined) {
             if (data.friends.includes(suggestions[0].id) == false) {
                 const userRef = doc(firestore, 'users', user.uid);
-                setDoc(userRef, { friends: data.friends.concat(suggestions[0].id) }, { merge: true });
+                updateDoc(userRef, { friends: data.friends.concat(suggestions[0].id) });
             }
         }
     };
 
     const submitFriend = async (e, id) => {
-        console.log("NO");
+        console.log("Cool");
         e.preventDefault();
         if (data.friends.includes(id) == false) {
             const userRef = doc(firestore, 'users', user.uid);
-            await setDoc(userRef, { friends: data.friends.concat(id) }, { merge: true });
+            await updateDoc(userRef, { friends: data.friends.concat(id) });
 
         }
         console.log(data);
