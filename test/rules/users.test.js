@@ -1,7 +1,7 @@
-const { setup, teardown } = require('./helpers');
-const { assertFails, assertSucceeds } = require('@firebase/testing');
+const { setup, teardown } = require("./helpers");
+const { assertFails, assertSucceeds } = require("@firebase/testing");
 
-describe('testing users rules', () => {
+describe("testing users rules", () => {
     let db;
     let users;
 
@@ -13,27 +13,22 @@ describe('testing users rules', () => {
         await teardown();
     });
 
-
     //Reading
-    test('fail reading threads when not sighned in', async () => {
+    test("fail reading threads when not sighned in", async () => {
         // Custom Matchers
         db = await setup();
-        users = db.collection('/users');
+        users = db.collection("/users");
         await expect(await assertFails(users.get()));
     });
 
-    test('succeed reading threads when signed in', async () => {
-
-
+    test("succeed reading threads when signed in", async () => {
         db = await setup({ uid: "foo" });
         users = db.collection("/users");
         await expect(await assertSucceeds(users.get()));
     });
 
-
     //Writing
-    test('fail in setting users when not all feilds', async () => {
-
+    test("fail in setting users when not all feilds", async () => {
         const userData = {
             displayName: "test",
             username: "username",
@@ -45,7 +40,7 @@ describe('testing users rules', () => {
         };
 
         const usernameData = {
-            uid: "test"
+            uid: "test",
         };
 
         db = await setup({ uid: "test" });
@@ -57,7 +52,7 @@ describe('testing users rules', () => {
         await expect(await assertFails(batch.commit()));
     });
 
-    test('fail in setting when is not user', async () => {
+    test("fail in setting when is not user", async () => {
         const userData = {
             displayName: "hi",
             username: "username",
@@ -65,11 +60,11 @@ describe('testing users rules', () => {
             email: "email",
             creationDate: new Date(),
             lastActive: new Date(),
-            friends: []
+            friends: [],
         };
 
         const usernameData = {
-            uid: "hi"
+            uid: "hi",
         };
 
         db = await setup({ uid: "test" });
@@ -81,7 +76,7 @@ describe('testing users rules', () => {
         await expect(await assertFails(batch.commit()));
     });
 
-    test('fail in setting when invalid date', async () => {
+    test("fail in setting when invalid date", async () => {
         const today = new Date();
         const tomorrow = new Date(today);
         const userData = {
@@ -91,11 +86,11 @@ describe('testing users rules', () => {
             email: "email",
             creationDate: new Date(tomorrow.setDate(tomorrow.getDate() + 1)),
             lastActive: new Date(tomorrow.setDate(tomorrow.getDate() + 1)),
-            friends: []
+            friends: [],
         };
 
         const usernameData = {
-            uid: "test"
+            uid: "test",
         };
 
         db = await setup({ uid: "test" });
@@ -107,8 +102,7 @@ describe('testing users rules', () => {
         await expect(await assertFails(batch.commit()));
     });
 
-    test('fail in setting users when username doc is not created', async () => {
-
+    test("fail in setting users when username doc is not created", async () => {
         const userData = {
             displayName: "test",
             username: "username",
@@ -116,7 +110,7 @@ describe('testing users rules', () => {
             email: "email",
             creationDate: new Date(),
             lastActive: new Date(),
-            friends: []
+            friends: [],
         };
 
         db = await setup({ uid: "test" });
@@ -127,8 +121,7 @@ describe('testing users rules', () => {
         await expect(await assertFails(batch.commit()));
     });
 
-    test('fail in setting users when username is not valid', async () => {
-
+    test("fail in setting users when username is not valid", async () => {
         const userData = {
             displayName: "test",
             username: "username",
@@ -136,11 +129,11 @@ describe('testing users rules', () => {
             email: "email",
             creationDate: new Date(),
             lastActive: new Date(),
-            friends: []
+            friends: [],
         };
 
         const usernameData = {
-            uid: "test"
+            uid: "test",
         };
 
         db = await setup({ uid: "test" });
@@ -160,8 +153,7 @@ describe('testing users rules', () => {
     });
 
     //Acts wrierd in vs code plugin but normal in terminal
-    test('succeed in setting users when all requirements are matched', async () => {
-
+    test("succeed in setting users when all requirements are matched", async () => {
         const userData = {
             displayName: "test",
             username: "username",
@@ -169,11 +161,11 @@ describe('testing users rules', () => {
             email: "email",
             creationDate: new Date(),
             lastActive: new Date(),
-            friends: []
+            friends: [],
         };
 
         const usernameData = {
-            uid: "test"
+            uid: "test",
         };
 
         db = await setup({ uid: "test" });
@@ -185,12 +177,9 @@ describe('testing users rules', () => {
         await expect(await assertSucceeds(batch.commit()));
     });
 
-
-
     //updating
 
-    test('fail in updating when invalid date', async () => {
-
+    test("fail in updating when invalid date", async () => {
         //set doc first
         const firstUserData = {
             displayName: "test",
@@ -199,11 +188,11 @@ describe('testing users rules', () => {
             email: "email",
             creationDate: new Date(),
             lastActive: new Date(),
-            friends: []
+            friends: [],
         };
 
         const usernameData = {
-            uid: "test"
+            uid: "test",
         };
 
         db = await setup({ uid: "test" });
@@ -225,7 +214,7 @@ describe('testing users rules', () => {
             email: "email",
             creationDate: new Date(tomorrow.setDate(tomorrow.getDate() + 1)),
             lastActive: new Date(tomorrow.setDate(tomorrow.getDate() + 1)),
-            friends: []
+            friends: [],
         };
 
         const usersdoc = db.doc("/users/test");
@@ -233,7 +222,7 @@ describe('testing users rules', () => {
         await expect(await assertFails(usersdoc.update(userData)));
     });
 
-    test('succeed in updating users when all requirements are matched', async () => {
+    test("succeed in updating users when all requirements are matched", async () => {
         //first set doc
         const firstUserData = {
             displayName: "test",
@@ -242,11 +231,11 @@ describe('testing users rules', () => {
             email: "email",
             creationDate: new Date(),
             lastActive: new Date(),
-            friends: []
+            friends: [],
         };
 
         const usernameData = {
-            uid: "test"
+            uid: "test",
         };
 
         db = await setup({ uid: "test" });
@@ -259,10 +248,43 @@ describe('testing users rules', () => {
 
         //now set it
         const userData = {
-            friends: ["cool"]
+            friends: ["cool"],
         };
 
+        const usersdoc = db.doc("/users/test");
 
+        await expect(await assertSucceeds(usersdoc.update(userData)));
+    });
+
+    test("succeed in updating users when other requirements are matched", async () => {
+        //first set doc
+        const firstUserData = {
+            displayName: "test",
+            username: "username",
+            profileIMG: "storageUrl",
+            email: "email",
+            creationDate: new Date(),
+            lastActive: new Date(),
+            friends: [],
+        };
+
+        const usernameData = {
+            uid: "test",
+        };
+
+        db = await setup({ uid: "test" });
+
+        var batch = db.batch();
+        batch.set(db.doc("/users/test"), firstUserData);
+        batch.set(db.doc("/usernames/username"), usernameData);
+
+        await batch.commit();
+
+        //now set it
+        db = await setup({ uid: "bob" });
+        const userData = {
+            friends: ["cool"],
+        };
 
         const usersdoc = db.doc("/users/test");
 

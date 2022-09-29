@@ -1,12 +1,13 @@
-.popup{
+.popup {
     background-color: rgb(204, 204, 204);
     width: 65vw;
     height: 70vh;
     border-radius: 2rem;
-    overflow: scroll;
+    overflow-y: scroll;
+    overflow-x: hidden;
 }
 
-.popupContainer{
+.popupContainer {
     display: inline-flex;
     position: fixed;
     width: 100vw;
@@ -18,45 +19,44 @@
     align-items: center;
 }
 
-.title{
+.title {
     margin: 0;
     text-align: center;
 }
 
-.suggestionListItem{
+.suggestionListItem {
     list-style: none;
     margin-right: 2rem;
     overflow-x: scroll;
     overflow-y: hidden;
-    margin-bottom: .5rem;
-    border-radius: .5rem;
-    
+    margin-bottom: 0.5rem;
+    border-radius: 0.5rem;
 }
 
-.suggestionListItemButton{
+.suggestionListItemButton {
     width: 100%;
     background-color: rgba(0, 0, 0, 0.502);
     border: 0;
 }
 
-.suggestionListItemButton:hover{
+.suggestionListItemButton:hover {
     background-color: rgba(0, 0, 0, 0.146);
 }
 
-.suggestionListItemButton:active{
+.suggestionListItemButton:active {
     background-color: rgba(81, 143, 172, 0.146);
 }
 
-.memberItem{
+.memberItem {
     background-color: rgba(47, 178, 214, 0.472);
-    box-sizing: .2rem;
+    box-sizing: 0.2rem;
     width: fit-content;
     height: fit-content;
-    padding: .1rem;
-    border-radius: .5rem;
+    padding: 0.1rem;
+    border-radius: 0.5rem;
 }
 
-.createButton{
+.createButton {
     background-color: rgba(47, 178, 214, 0.472);
     border: none;
     width: calc(100% - 2rem);
@@ -64,30 +64,29 @@
     border-radius: 1rem;
 }
 
-.createButton:hover{
+.createButton:hover {
     background-color: rgba(47, 214, 103, 0.472);
 }
 
-.createButton:active{
+.createButton:active {
     background-color: rgba(214, 206, 47, 0.472);
 }
 
-.groupName{
+.groupName {
     margin-left: 1rem;
     height: 2rem;
     background-color: transparent;
-    border-radius: .5rem;
-    border: solid .2rem rgb(101, 210, 101);
+    border-radius: 0.5rem;
+    border: solid 0.2rem rgb(101, 210, 101);
     width: calc(100% - 2rem);
 }
 
-.memberUsername{
+.memberUsername {
     margin: 0;
-    font-size: .7rem;
-    
+    font-size: 0.7rem;
 }
 
-.imageContainer{
+.imageContainer {
     justify-content: center;
     align-items: center;
     position: relative;
@@ -96,40 +95,39 @@
     width: 2rem;
 }
 
-.username{
+.username {
     padding-left: 1rem;
     font-size: 2rem;
-    
+
     display: inline;
 }
 
-.x{
+.x {
     background-color: transparent;
     border: 0;
     padding-top: 1rem;
     padding-left: 1rem;
 }
 
-.users{
+.users {
     background-color: transparent;
     border: solid;
-    border-width: .2rem;
-    margin: .5rem 1rem 1rem 1rem;
-    border-radius: .5rem;
+    border-width: 0.2rem;
+    margin: 0.5rem 1rem 1rem 1rem;
+    border-radius: 0.5rem;
     border-color: blue;
     display: flex;
     justify-content: left;
     align-items: center;
-    padding: .2rem;
-    
+    padding: 0.2rem;
 }
 
-.usersType{
+.usersType {
     background-color: transparent;
     border: 0;
     width: 100%;
 }
 
-.members:empty{
+.members:empty {
     display: none;
 }
