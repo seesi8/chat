@@ -1,17 +1,24 @@
-import { useState } from 'react';
-import styles from '../styles/create.module.css';
-import { auth, firestore } from '../lib/firebase';
+import { useState } from "react";
+import styles from "../styles/create.module.css";
+import { auth, firestore } from "../lib/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import toast from 'react-hot-toast';
-import { v4 as uuidv4 } from 'uuid';
+import toast from "react-hot-toast";
+import { v4 as uuidv4 } from "uuid";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, limit, orderBy, setDoc, getDocs, collection, query, where, writeBatch } from "firebase/firestore";
-import { useRouter } from 'next/router';
-
-
+import {
+    doc,
+    limit,
+    orderBy,
+    setDoc,
+    getDocs,
+    collection,
+    query,
+    where,
+    writeBatch,
+} from "firebase/firestore";
+import { useRouter } from "next/router";
 
 function uploadImage(e, setStoreageUrl) {
-
     e.preventDefault();
 
     const storage = getStorage();
@@ -21,18 +28,16 @@ function uploadImage(e, setStoreageUrl) {
 
     // 'file' comes from the Blob or File API
     uploadBytes(storageRef, file).then((snapshot) => {
-        getDownloadURL(snapshot.ref)
-            .then((url) => {
-                setStoreageUrl(url);
-            });
+        getDownloadURL(snapshot.ref).then((url) => {
+            setStoreageUrl(url);
+        });
     });
 }
 
-
-export default function Create({ }) {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [displayName, setDisplayName] = useState('');
+export default function Create({}) {
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [displayName, setDisplayName] = useState("");
     const [storageUrl, setStoreageUrl] = useState("");
     const router = useRouter();
 
@@ -44,10 +49,14 @@ export default function Create({ }) {
         }
         createUserWithEmailAndPassword(auth, email, password)
             .then(async (userCredential) => {
-                // Signed in 
+                // Signed in
                 const userUID = userCredential.user.uid;
                 const usersRef = collection(firestore, "users");
-                const q = query(usersRef, where("displayName", "==", displayName), orderBy("username", "asc", limit(1)));
+                const q = query(
+                    usersRef,
+                    where("displayName", "==", displayName),
+                    orderBy("username", "asc", limit(1))
+                );
                 const querySnapshot = await getDocs(q);
 
                 let username = "";
@@ -64,7 +73,9 @@ export default function Create({ }) {
                             index = "0";
                         }
 
-                        username = displayName.concat((parseInt(index) + 1).toString());
+                        username = displayName.concat(
+                            (parseInt(index) + 1).toString()
+                        );
                     });
                 }
                 const batch = writeBatch(firestore);
@@ -75,10 +86,10 @@ export default function Create({ }) {
                     email: email,
                     creationDate: new Date(),
                     lastActive: new Date(),
-                    friends: []
+                    friends: [],
                 });
                 batch.set(doc(firestore, "usernames", username), {
-                    uid: userUID
+                    uid: userUID,
                 });
 
                 await batch.commit();
@@ -95,33 +106,54 @@ export default function Create({ }) {
                 if (errorCode.includes("email")) {
                     toast.error("Invalid Email");
                     return;
-                }
-                else if (errorCode.includes("password")) {
+                } else if (errorCode.includes("password")) {
                     toast.error("Invalid Password");
                     return;
-                }
-                else {
+                } else {
                     toast.error("Invalid Info");
                 }
                 console.log(errorCode);
                 return;
             });
-
     };
-
-
 
     return (
         <main>
             <form onSubmit={(e) => submit(e)} className={styles.inputContainer}>
                 <label className={styles.label}>Create Account</label>
-                <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className={styles.input} />
-                <input placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className={styles.input} />
-                <input placeholder="Display Name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={styles.input} />
+                <input
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={styles.input}
+                />
+                <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={styles.input}
+                />
+                <input
+                    placeholder="Display Name"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className={styles.input}
+                />
                 <label className={styles.label}>Profile Picture</label>
-                <input className={styles.input} type="file" onChange={(e) => uploadImage(e, setStoreageUrl)} accept=".gif,.jpg,.jpeg,.png" />
+                <input
+                    className={styles.input}
+                    type="file"
+                    onChange={(e) => uploadImage(e, setStoreageUrl)}
+                    accept=".gif,.jpg,.jpeg,.png"
+                />
                 <label className={styles.label}>Submit</label>
-                <button disabled={storageUrl ? false : true} className={styles.button} >Submit</button>
+                <button
+                    disabled={storageUrl ? false : true}
+                    className={styles.button}
+                >
+                    Submit
+                </button>
             </form>
         </main>
     );

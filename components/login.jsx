@@ -39,7 +39,7 @@ export default function Login({}) {
                 } else if (errorMessage.includes("auth/user-not-found")) {
                     toast.error("User Does Not Exist");
                 } else {
-                    toast.error("Error");
+                    //toast.error("Error");
                 }
             });
     };
@@ -55,6 +55,7 @@ export default function Login({}) {
                     className={styles.input}
                 />
                 <input
+                    type="password"
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

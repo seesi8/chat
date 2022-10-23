@@ -26,6 +26,9 @@ export default function Profile({}) {
     const [friendsNumber, setFriendsNumber] = useState(incrimentValue);
 
     const getData = async () => {
+        if (!data || !user) {
+            return;
+        }
         const people = [];
         const fromUser = await getDocs(
             query(
@@ -39,14 +42,16 @@ export default function Profile({}) {
                 where("to", "==", user.uid)
             )
         );
-        fromUser.forEach(async (item) => {
-            const otherUser = item.data().to;
+
+        for (let i in fromUser.docs) {
+            const otherUser = fromUser.docs[i].data().to;
             people.push(await getDoc(doc(firestore, "users", otherUser)));
-        });
-        toUser.forEach(async (item) => {
-            const otherUser = item.data().from;
+            console.log("pushed");
+        }
+        for (let i in toUser.docs) {
+            const otherUser = toUser.docs[i].data().from;
             people.push(await getDoc(doc(firestore, "users", otherUser)));
-        });
+        }
         for (let i in data.friends) {
             people.push(await getDoc(doc(firestore, "users", data.friends[i])));
         }
@@ -56,11 +61,12 @@ export default function Profile({}) {
             docData.id = doc.id;
             currentMembers.push(docData);
         });
+        console.log(currentMembers);
         setFriends(currentMembers);
     };
 
     useEffect(() => {
-        user && getData();
+        user && data && getData();
     }, [data, user]);
 
     useEffect(() => {
