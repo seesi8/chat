@@ -1,0 +1,34 @@
+.ballberts {
+    position: relative;
+    height: 20rem;
+    width: 20rem;
+}
+
+.contianer {
+    display: flex;
+    padding-top: 2rem;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.about {
+    font-size: 7vw;
+}
+
+.mainText {
+    text-align: left;
+    width: 80vw;
+}
+.mainText > p {
+    color: rgb(125, 125, 125);
+    font-size: 1.25rem;
+}
+
+.mainText > h2 {
+    font-size: 2rem;
+}
+
+p.firstParagraph {
+    color: white;
+}

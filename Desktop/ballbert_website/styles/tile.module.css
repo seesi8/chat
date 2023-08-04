@@ -1,0 +1,56 @@
+.tile {
+    background-color: transparent;
+    width: calc(9vw + 10rem);
+    height: calc(6vw + 6rem);
+    perspective: 1000px; /* Remove this if you don't want the 3D effect */
+}
+
+/* This container is needed to position the front and back side */
+.inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.8s;
+    transform-style: preserve-3d;
+    outline: white solid 0.1rem;
+}
+
+/* Do an horizontal flip when you move the mouse over the flip box container */
+.tile:hover:not(.flipped) .inner {
+    transform: rotateY(180deg);
+}
+
+.flipped .inner {
+    transform: rotateY(180deg);
+}
+
+/* Position the front and back side */
+.front,
+.back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden; /* Safari */
+    backface-visibility: hidden;
+}
+
+/* Style the front side (fallback if image is missing) */
+.front {
+    background-color: transparent;
+    color: white;
+}
+
+/* Style the back side */
+.back {
+    color: white;
+    transform: rotateY(180deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(0.75vw + 0.7rem);
+}
+
+.icon {
+    font-size: calc(4.8vw + 3rem);
+}

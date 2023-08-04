@@ -1,0 +1,89 @@
+.main {
+    min-height: 100vh;
+    padding: 2rem 0;
+    display: flex;
+    padding: 1rem 2rem;
+
+    justify-content: space-around;
+}
+
+.title {
+    font-size: 3vw;
+}
+
+.ballbert_logo {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    transition: 1s all ease;
+}
+
+.column {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+}
+
+.get_one {
+    all: unset;
+    padding: 2vw;
+    font-size: 2vw;
+    background-color: transparent;
+    border: solid white 0.2rem;
+    border-radius: 2rem;
+}
+
+.micIcon {
+    width: 7vw;
+    height: 7vw;
+}
+
+.speak {
+    background-color: transparent;
+    border: white solid 0.2rem;
+    padding: 1.5rem;
+    border-radius: 100%;
+    transition: all 1s ease;
+}
+
+.speak_on {
+    border-color: red;
+}
+
+.tryMe {
+    text-align: center;
+}
+
+.rotated {
+    rotate: 15deg !important;
+}
+
+.logo_container {
+    width: 20vw;
+    aspect-ratio: 16/9;
+    rotate: 00deg;
+    flex-basis: 100%;
+    transition: all 1s ease;
+    position: relative;
+}
+
+.transparent {
+    opacity: 0;
+}
+
+.caption {
+    position: absolute;
+    top: 0;
+    left: calc(50vw - 20rem);
+    width: 40rem;
+    text-align: justify;
+    background-color: rgba(0, 0, 0, 0.528);
+    padding: 0.5rem;
+    border-radius: 1rem;
+}
+
+.caption:empty {
+    padding: 0;
+}

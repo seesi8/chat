@@ -1,0 +1,27 @@
+.header {
+    position: fixed;
+    width: 100%;
+    z-index: 1;
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+.break {
+    border: 0.1px solid rgb(255, 255, 255);
+    margin: 0;
+}
+
+.items {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    font-size: large;
+}
+
+.items > a {
+}
+
+.ballbert {
+    position: relative;
+    width: 3rem;
+    height: 3rem;
+}

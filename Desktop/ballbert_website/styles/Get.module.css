@@ -1,0 +1,75 @@
+.devkitImage,
+.ballbertImage {
+    width: 40vw;
+    position: relative;
+    aspect-ratio: 16/9;
+}
+
+.ballbertImage {
+    margin: 1.7vw 0rem;
+}
+
+.devkitImage {
+    width: 45vw;
+}
+
+.get {
+    display: flex;
+    justify-content: center;
+}
+
+.devkit,
+.ballbert {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    align-content: flex-start;
+    height: 100%;
+}
+
+.getBallbert {
+    width: 100%;
+    text-align: center;
+    font-size: 3rem;
+    margin: 0;
+}
+
+.preorder,
+.backorder {
+    width: 100%;
+    height: fit-content;
+    text-align: center;
+    font-size: xx-large;
+}
+
+.buyDevkit,
+.buyBallbert {
+    all: unset;
+    margin: 0 20vw;
+    width: 10vw;
+    height: 3vw;
+    background-color: transparent;
+    border: solid white 0.1rem;
+    text-align: center;
+    font-weight: bold;
+    border-radius: 0.7vw;
+    transition: all 0.5s ease;
+}
+
+.buyBallbert:hover,
+.buyDevkit:hover {
+    color: rgb(26, 237, 96);
+    border-color: rgb(52, 199, 89);
+}
+
+.devkitParagraph,
+.ballbertParagraph {
+    margin: 2rem;
+    text-align: justify;
+}
+
+.container {
+    padding-top: 4rem;
+}

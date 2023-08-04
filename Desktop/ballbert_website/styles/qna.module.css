@@ -1,0 +1,47 @@
+.qna > p {
+    color: rgb(144, 144, 144);
+}
+
+.qna {
+    padding: 1rem;
+}
+
+.dropdownContent {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+
+.openContent {
+    max-height: 100vh;
+    transition: max-height 0.3s ease-in;
+}
+.dropdownTitle {
+    all: unset;
+    background-color: transparent;
+    border: solid 0.5px white;
+    color: white;
+    padding: 1rem;
+    width: 80%;
+    border-radius: 0.5rem;
+    font-size: 1.2rem;
+    display: flex;
+    justify-content: space-between;
+    margin: 1rem 0;
+}
+
+.qna {
+    margin: 1rem;
+}
+
+.dropdownTitle > * {
+    margin: 0;
+}
+
+.open {
+    rotate: 180deg;
+}
+
+.dropdownIcon {
+    transition: all 0.2s ease;
+}
