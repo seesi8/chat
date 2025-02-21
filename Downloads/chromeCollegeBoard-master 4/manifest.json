@@ -1,0 +1,21 @@
+{
+  "name": "CollegeBoard Show",
+  "description": "removes the score restrictions on CollegeBoard's website",
+  "version": "1.0",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "hello.html",
+    "default_icon": "hello_extensions.png"
+  },
+  "permissions": ["webRequest", "debugger", "scripting", "tabs", "activeTab", "declarativeContent", "storage"],
+  "host_permissions": ["http://*/*", "https://*/*", "file://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*", "file://*/*"],
+      "js": ["content.js","html2canvas.min.js"]
+    }
+  ]
+}

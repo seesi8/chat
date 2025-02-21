@@ -17,11 +17,11 @@ export default function About({}) {
                         We believe in harnessing the power of cutting-edge
                         technology to create delightful and meaningful
                         experiences for users worldwide. Founded by Samuel
-                        Liebert, a visionary entrepreneur passionate about
-                        artificial intelligence and human-computer interactions,
-                        Ballbert, LLC has been at the forefront of developing
-                        advanced AI-driven solutions that bring joy,
-                        convenience, and efficiency into people's lives.
+                        Liebert, an entrepreneur passionate about artificial
+                        intelligence and human-computer interactions, Ballbert,
+                        LLC has been at the forefront of developing advanced
+                        AI-driven solutions that bring joy, convenience, and
+                        efficiency into people's lives.
                     </p>
 
                     <h2>
