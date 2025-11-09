@@ -9,7 +9,7 @@ import {
     removeRequest,
     submitUsername,
 } from "../lib/functions";
-
+ 
 export function Person({ item }) {
     console.log(item);
     const { user, data } = useContext(UserContext);

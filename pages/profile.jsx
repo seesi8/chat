@@ -17,7 +17,7 @@ import { removeFriend } from "../lib/hooks";
 import Login from "../components/login";
 import { Person } from "../components/person";
 
-export default function Profile({}) {
+export default function Profile({ }) {
     const incrimentValue = 3;
 
     const { user, data } = useContext(UserContext);
@@ -86,19 +86,22 @@ export default function Profile({}) {
                             className={styles.profileImage}
                             src={data && data.profileIMG}
                         />
+
+                    </div>
+                    <div className={styles.col2}>
+                        <p className={styles.displayName}>
+                            {data && data.displayName}
+                        </p>
+                        <p className={styles.username}>@{data && data.username}</p>
+
                     </div>
                 </div>
-                <h1 className={styles.displayName}>
-                    {data && data.displayName}
-                </h1>
-                <p className={styles.username}>@{data && data.username}</p>
-                <hr />
                 <h1 className={styles.friendsTitle}>Friends</h1>
                 {currentFriends.map((item) => (
                     <div key={item.id}>
                         <Person item={item} />
                     </div>
-                ))}
+                ))} 
                 {friends.length > friendsNumber && (
                     <div className={styles.moreContainer}>
                         {" "}
@@ -112,7 +115,6 @@ export default function Profile({}) {
                         </button>{" "}
                     </div>
                 )}
-                <hr />
                 <div className={styles.signOutButtonContainer}>
                     <button
                         onClick={() => auth.signOut()}

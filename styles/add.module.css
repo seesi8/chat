@@ -16,13 +16,19 @@
     justify-content: center;
     margin: 0;
     align-items: center;
-}
+} 
 
 .removeFreind {
     display: inline;
     background-color: rgba(210, 93, 93, 0.516);
-    margin: auto 1rem;
-    height: fit-content;
+    margin: 0;
+    /* height: fit-content; */
+    border: none;
+    border-radius: 0rem 0.5rem 0.5rem 0rem;
+}
+
+.removeFreind:hover{
+    cursor: pointer;
 }
 
 .title {
@@ -41,9 +47,11 @@
 .suggestionListItemButton {
     width: 100%;
     overflow: hidden;
-    display: inline;
+    display: flex;
+    align-items: cneter;
     background-color: rgba(0, 0, 0, 0.502);
     border: 0;
+    align-items: center;
 }
 
 .buttonContainer {
@@ -120,14 +128,16 @@
     align-items: center;
     position: relative;
     display: inline-flex;
-    height: 2rem;
-    width: 2rem;
+    height:2.5rem;
+    width: 2.5rem;
+    border-radius: 100%;
+    overflow: hidden;
 }
 
 .username {
     padding-left: 1rem;
     font-size: 2rem;
-
+    margin: 0.5rem 0rem;
     display: inline;
 }
 

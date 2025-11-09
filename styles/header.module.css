@@ -1,5 +1,5 @@
 .header{
-    background-color: white;
+    background-color: #12191b;
     position: fixed;
     margin: 0;
     width: 100vw;
@@ -8,6 +8,8 @@
     top: 0;
     height: 4rem;
     left: 0;
+    border-bottom: 0.1rem white solid;
+    align-items: center;
 }
 
 .new{
@@ -16,50 +18,28 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    font-size: 2rem;
+    height: 2rem;
+    color: white;
+    margin-left: 1rem;
 }
 
-.new:active{
-    background-color: rgba(55, 248, 12, 0.519);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: .4rem;
-    border-radius: 1rem;
-}
 
 .new:hover{
-    background-color: rgba(0, 149, 255, 0.378);
-    padding: .4rem;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: 1rem;
+    cursor: pointer;
 }
 
 .profile{
     margin-left: calc(100% - 14rem);
 }
 
-.plus:active{
-    background-color: rgba(55, 248, 12, 0.519);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: .4rem;
-    border-radius: 1rem;
-}
-
-.plus:hover{
-    background-color: rgba(0, 149, 255, 0.378);
-    padding: .4rem;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: 1rem;
-}
 
 .threadsContainer{
     padding-top: 5rem;
+}
+
+.plus:hover{
+    cursor: pointer;
 }
 
 .plus{
@@ -67,4 +47,13 @@
     border: none;
     margin-left: auto;
     display: inline;
+    color: white;
+    font-size: 2rem;
+    height: 2rem;
+}
+
+.home{
+    font-size: 2rem;
+    color: white;
+    height: 2rem;
 }

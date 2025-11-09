@@ -23,11 +23,19 @@
 
 .thread{
   align-items: center;
-  background-color: rgba(135, 120, 120, 0.445);
-  margin: 1rem 0rem 1rem 0rem;
-  border-radius: 1rem;
+  background-color: transparent;
+  margin: 2rem 0rem 1rem 0rem;
+  border: none;
+  border-bottom: dotted 0.1rem white;
+  border-left: dotted 0.1rem white;
+  border-radius: 0rem 0rem 0rem 1rem;
   display: flex;
   width: 100%;
+  color: white;
+}
+
+.thread:hover{
+  cursor: pointer;
 }
 
 .threadTitle{
@@ -47,9 +55,9 @@
 
 .threadsTitle{
   color: white;
-  font-size: 10vh;
+  font-size: 2rem;
   margin: 0;
-  text-align: center;
+  text-align: left;
 }
 
 .threadsContainer{

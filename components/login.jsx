@@ -63,7 +63,7 @@ export default function Login({}) {
                 />
                 <button className={styles.button}>Submit</button>
                 <Link href="/create">
-                    <h3 className={styles.create}>Create Acount</h3>
+                    <h3 className={styles.create}>Create Account</h3>
                 </Link>
             </form>
         </main>

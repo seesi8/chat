@@ -1,12 +1,15 @@
 .input,
 .button{
-    width: 70vw;
-    background-color: white;
+    width: 40vw;
     border: 0;
     color: black;
-    height: 1.5rem;
+    height: 3em;
+    background-color: transparent;
+    border: solid white 0.1rem;
     border-radius: .5rem;
-    margin: 2vh 15vw 1vh 15vw;
+    margin: 2vh 30vw 1vh 30vw;
+    padding: 0.5rem;
+    color: white;
 }
 
 .inputContainer{
@@ -18,16 +21,26 @@
     align-items: center;
 }
 
+.button{
+    font-weight: bold;
+}
+
 .button:active{
     background-color: gray;
 }
 
 .label{
     color: white;
+    font-weight: bold;
+    font-size: 1.5rem;
 }
 
 .create{
-    color: white;
+    color: teal;
+    border: solid teal 0.1rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    font-size: 1rem;
 }
 
 .create:hover{

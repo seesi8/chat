@@ -104,7 +104,7 @@ export default function Thread({ threadId }) {
             {messages &&
                 messages.map((el) => (
                     <div className={styles.messageContainer} key={uuidv4()}>
-                        <p className={styles.user}>{el.sentBy.username}</p>
+
                         <div className={styles.row1}>
                             <div className={styles.imgContainer}>
                                 <img
@@ -112,13 +112,17 @@ export default function Thread({ threadId }) {
                                     src={el.sentBy.profileIMG}
                                 />
                             </div>
-                            <div className={styles.message}>
-                                <h3 className={styles.messageText}>
-                                    {el.message}
-                                </h3>
+                            <div className={styles.col1}>
+                                <p className={styles.user}>{el.sentBy.username}</p>
+                                <p className={styles.messageDate}>{el.timeSent}</p>
                             </div>
+
                         </div>
-                        <p className={styles.messageDate}>{el.timeSent}</p>
+                        <div className={styles.message}>
+                            <h3 className={styles.messageText}>
+                                {el.message}
+                            </h3>
+                        </div>
                     </div>
                 ))}
             <div ref={bottomOfMessages} />

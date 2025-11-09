@@ -14,6 +14,7 @@ import {
     limit,
     writeBatch,
 } from "firebase/firestore";
+import { FaTimes } from "react-icons/fa";
 
 export default function Popup({ setPopup }) {
     const { user, data } = useContext(UserContext);
@@ -53,11 +54,12 @@ export default function Popup({ setPopup }) {
     }, []);
 
     useEffect(() => {
+        console.log(friends)
         setSuggestion([]);
         let currentSuggestions = [];
         for (let i = 0; i < friends.length; i++) {
             if (
-                friends[i].username.includes(currentInput) &&
+                friends[i].username.toLowerCase().includes(currentInput.toLowerCase()) &&
                 !friends[i].uid.includes(user.uid)
             ) {
                 currentSuggestions.push(friends[i]);
@@ -111,6 +113,16 @@ export default function Popup({ setPopup }) {
         setCurrentInput("");
     };
 
+    const removeMember = (e, item) => {
+        e.preventDefault();
+        if (contains(members, { uid: item.uid, username: item.username })) {
+            setMembers(
+                members.filter(_item => _item.uid !== item.uid)
+            );
+        }
+        setCurrentInput("");
+    };
+
     const createGroup = async () => {
         const groupId = uuidv4();
         if (groupName == "") {
@@ -140,7 +152,7 @@ export default function Popup({ setPopup }) {
         <div className={styles.popupContainer}>
             <div className={styles.popup}>
                 <button className={styles.x} onClick={() => setPopup(false)}>
-                    <Image src="/close.png" width={40} height={40} />
+                    <FaTimes className={styles.xtext}/>
                 </button>
                 <h1 className={styles.title}>Create Group</h1>
                 <form onSubmit={(e) => submitUsername(e)}>
@@ -154,7 +166,9 @@ export default function Popup({ setPopup }) {
                     />
                     <div className={styles.users}>
                         {members.map((item) => (
-                            <div className={styles.memberItem} key={uuidv4()}>
+                            <div className={styles.memberItem} key={uuidv4()} onClick={(e) => {
+                                removeMember(e, item)
+                            }}>
                                 <p
                                     className={styles.memberUsername}
                                 >{`@${item.username}`}</p>

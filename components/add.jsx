@@ -38,7 +38,7 @@ export default function Add({ setPopup }) {
         let currentSuggestions = [];
         for (let i = 0; i < people.length; i++) {
             if (
-                people[i].username.includes(currentInput) &&
+                people[i].username.toLowerCase().includes(currentInput.toLowerCase()) &&
                 people[i].id != user.uid
             ) {
                 currentSuggestions.push(people[i]);
