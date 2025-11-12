@@ -1,11 +1,10 @@
-
-.main{
+.main {
     padding-top: calc(10vh + 5rem);
     display: flex;
     justify-content: center;
 }
 
-.profileImageContainer{
+.profileImageContainer {
     background-color: white;
     overflow: hidden;
     width: 5rem;
@@ -13,74 +12,84 @@
     border-radius: 100%;
     overflow: hidden;
     position: relative;
+    z-index: -2;
+
 }
 
-.friendProfileImage{
+.friendProfileImage {
     margin: 0;
     padding: 0;
     height: 7vw;
+    z-index: -2;
+
 }
 
-.friendProfileImageContainer{
+.friendProfileImageContainer {
     background-color: white;
     overflow: hidden;
     width: 11vw;
     height: 11vw;
     margin: .5rem;
     border-radius: 100%;
+    z-index: -2;
+
 }
 
-.rightCollumn{
+.rightCollumn {
     margin-top: 0rem;
 }
 
-.profileImage{
+.profileImage {
     margin: 0;
     padding: 0;
     height: 5rem;
+    z-index: -2;
     position: absolute;
     right: -50%;
 }
 
-.displayName{
+.displayName {
     text-align: center;
     color: white;
     margin: 0;
     font-size: 2rem;
     font-weight: bold;
 }
-.username{
+
+.username {
     text-align: center;
     color: rgb(171, 171, 171);
     margin: 0;
     font-size: 1rem;
-    
+
 }
 
-.freindUsername{
+.freindUsername {
     margin: 0 0 0 2vw;
     text-align: center;
     padding-bottom: 1vh;
     font-size: 2vw;
 }
 
-.profileImageContainerContainer{
+.profileImageContainerContainer {
     display: flex;
     justify-content: center;
     width: 100%;
+    z-index: -2;
+
 }
 
-.moreContainer{
+.moreContainer {
     display: flex;
     justify-content: center;
 }
 
-.signOutButtonContainer{
+.signOutButtonContainer {
     display: flex;
     justify-content: center;
 }
 
-.signOutButton{
+.signOutButton {
     background-color: rgb(185, 69, 69);
     border: 0;
     margin-bottom: 5rem;
@@ -91,13 +100,13 @@
     margin-top: 1.5rem;
 }
 
-.signOutButton:hover{
+.signOutButton:hover {
     cursor: pointer;
 }
 
 
 
-.more{
+.more {
     border: none;
     padding: .5rem 1rem .5rem 1rem;
     border-radius: .5rem;
@@ -105,20 +114,20 @@
     background-color: rgb(0, 179, 255);
 }
 
-.freindDisplayName{
+.freindDisplayName {
     font-size: 2rem;
     text-align: center;
     margin: 0 0 0 2vw;
     padding: 0rem;
     font-size: 6vw;
-} 
+}
 
-.friendsTitle{
+.friendsTitle {
     color: white;
     text-align: left;
 }
 
-.removeFriend{
+.removeFriend {
     background-color: rgba(255, 0, 0, 0.475);
     border: 0;
     margin: 1rem;
@@ -126,13 +135,53 @@
 }
 
 
-.FriendCardMain{
+.FriendCardMain {
     display: flex;
     margin: 1rem 0rem;
     background-color: gray;
     border-radius: .5rem;
 }
 
-.col2{
+.col2 {
     margin-left: 1rem;
+}
+
+.backup {
+    color: rgb(172, 172, 172);
+    margin: 0;
+}
+
+.backupInfo {
+    color: rgb(156, 156, 156);
+    margin: 0;
+    font-size: 0.75rem;
+}
+
+.warning {
+    color: rgb(220, 59, 59);
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.container {
+    padding: 1rem;
+}
+
+.backupButton {
+    background-color: rgb(228, 228, 228);
+    border: 0;
+    border-radius: 1rem;
+    font-weight: bold;
+    padding: 0.25rem;
+    font-size: 1rem;
+    margin-top: .5rem;
+    width: 7rem;
+    display: flex;
+    justify-content: center;
+    text-align: center;
+}
+
+.backupButton:hover {
+    cursor: pointer;
 }

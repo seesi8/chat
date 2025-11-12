@@ -17,6 +17,7 @@ import {
     writeBatch,
 } from "firebase/firestore";
 import { useRouter } from "next/router";
+import { generateAndStoreX25519Keypair } from "../lib/e2ee/e2ee";
 
 function uploadImage(e, setStoreageUrl) {
     e.preventDefault();
@@ -59,6 +60,9 @@ export default function Create({}) {
                 );
                 const querySnapshot = await getDocs(q);
 
+                const publicRaw = await generateAndStoreX25519Keypair()
+                const publicB64 = btoa(String.fromCharCode(...publicRaw)); // or your b64(u8) helper
+
                 let username = "";
                 if (querySnapshot.docs.length == 0) {
                     console.log("no username");
@@ -86,6 +90,7 @@ export default function Create({}) {
                     email: email,
                     creationDate: new Date(),
                     lastActive: new Date(),
+                    publicKey: publicB64, 
                     friends: [],
                 });
                 batch.set(doc(firestore, "usernames", username), {

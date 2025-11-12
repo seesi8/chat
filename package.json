@@ -11,8 +11,11 @@
     "test": "jest --forceExit --watchAll --coverage"
   },
   "dependencies": {
+    "@digitalbazaar/minimal-cipher": "^6.0.0",
     "@firebase/testing": "^0.20.11",
     "@signalapp/libsignal-client": "^0.86.0",
+    "@stablelib/base64": "^2.0.1",
+    "@stablelib/x25519": "^2.0.1",
     "babel-jest": "^29.0.3",
     "firebase": "^9.9.4",
     "kill-port": "^2.0.1",
@@ -23,7 +26,8 @@
     "react-hot-toast": "^2.3.0",
     "react-icons": "^5.5.0",
     "ts-jest": "^29.0.2",
-    "uuid": "^8.3.2"
+    "uuid": "^8.3.2",
+    "x25519-key-pair": "^3.1.0"
   },
   "devDependencies": {
     "@babel/plugin-syntax-jsx": "^7.18.6",

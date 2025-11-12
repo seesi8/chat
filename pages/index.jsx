@@ -14,6 +14,7 @@ import { uuidv4 } from "@firebase/util";
 import { firstore } from "../lib/firebase";
 import Link from "next/link";
 import { useCollection } from "react-firebase-hooks/firestore";
+import {generateX25519Keypair, genereateKeys} from "../lib/e2ee/e2ee"
 
 function Thread(thread) {
     const [threadData, setThreadData] = useState(thread.thread);
@@ -46,7 +47,9 @@ export default function Home() {
         );
 
     const loadThreads = async () => {
+        console.log("started")
         if (!data || !user || !usersThreads) return;
+        console.log("here")
         const localThreads = [];
         for (let i in usersThreads.docs) {
             if (!usersThreads.docs[i].data().members.includes(user.uid)) {

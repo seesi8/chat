@@ -54,7 +54,6 @@ export default function Popup({ setPopup }) {
     }, []);
 
     useEffect(() => {
-        console.log(friends)
         setSuggestion([]);
         let currentSuggestions = [];
         for (let i = 0; i < friends.length; i++) {
@@ -105,9 +104,9 @@ export default function Popup({ setPopup }) {
             console.log(
                 contains(members, { uid: item.uid, username: item.username })
             );
-            console.log({ uid: item.uid, username: item.username });
+            console.log(item);
             setMembers(
-                members.concat({ uid: item.uid, username: item.username })
+                members.concat({ uid: item.uid, username: item.username, publicKey: item.publicKey })
             );
         }
         setCurrentInput("");
@@ -132,13 +131,17 @@ export default function Popup({ setPopup }) {
         for (let i in members) {
             memberUID.push(members[i].uid);
         }
-        console.log(memberUID);
+        console.log(members.filter((item) => item.uid != user.uid))
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const saltB64 = btoa(String.fromCharCode(...salt));
+
         const batch = writeBatch(firestore);
         batch.set(doc(firestore, "threads", groupId), {
             groupName: groupName.toString(),
             members: memberUID,
             createdAt: new Date(),
             latestMessage: new Date(),
+            salt: saltB64
         });
         batch.set(doc(firestore, "threadsId", groupId), {
             id: groupId,
@@ -155,7 +158,9 @@ export default function Popup({ setPopup }) {
                     <FaTimes className={styles.xtext}/>
                 </button>
                 <h1 className={styles.title}>Create Group</h1>
-                <form onSubmit={(e) => submitUsername(e)}>
+                {/* <form onSubmit={(e) => submitUsername(e)}> */}
+                <form>
+
                     <input
                         placeholder="Group Name"
                         required

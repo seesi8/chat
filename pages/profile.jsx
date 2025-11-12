@@ -16,6 +16,9 @@ import { auth } from "../lib/firebase";
 import { removeFriend } from "../lib/hooks";
 import Login from "../components/login";
 import { Person } from "../components/person";
+import { getMyPrivateKey, storeAndDownloadKey } from "../lib/e2ee/e2ee";
+import Backup from "../components/backup";
+import toast from "react-hot-toast";
 
 export default function Profile({ }) {
     const incrimentValue = 3;
@@ -24,6 +27,8 @@ export default function Profile({ }) {
     const [friends, setFriends] = useState([]);
     const [currentFriends, setCurrentFriends] = useState(friends);
     const [friendsNumber, setFriendsNumber] = useState(incrimentValue);
+    const [popup, setPopup] = useState(false)
+    const [already, setAlready] = useState(false)
 
     const getData = async () => {
         if (!data || !user) {
@@ -66,8 +71,12 @@ export default function Profile({ }) {
     };
 
     useEffect(() => {
+        console.log(user)
+        console.log(data)
+
         user && data && getData();
     }, [data, user]);
+
 
     useEffect(() => {
         setCurrentFriends(friends.slice(0, friendsNumber));
@@ -77,9 +86,33 @@ export default function Profile({ }) {
         return <Login />;
     }
 
+    const downloadBackup = async (passphrase) => {
+        const myPrivateKey = data.privateKey; // <-- await
+
+        const data = await storeAndDownloadKey(myPrivateKey, passphrase, user.uid, already);
+        if (already) {
+            setAlready(false)
+        }
+        console.log(data)
+        if (data) {
+            setPopup(false)
+            toast.success("Backup Created");
+        } else {
+            setAlready(true)
+        }
+    }
+
+
+
     return (
         <main className={styles.main}>
             <div className={styles.container}>
+                {
+                    popup ?
+                        <Backup setPopup={setPopup} makeBackup={downloadBackup} already={already} />
+                        :
+                        ""
+                }
                 <div className={styles.profileImageContainerContainer}>
                     <div className={styles.profileImageContainer}>
                         <img
@@ -101,7 +134,7 @@ export default function Profile({ }) {
                     <div key={item.id}>
                         <Person item={item} />
                     </div>
-                ))} 
+                ))}
                 {friends.length > friendsNumber && (
                     <div className={styles.moreContainer}>
                         {" "}
@@ -115,6 +148,16 @@ export default function Profile({ }) {
                         </button>{" "}
                     </div>
                 )}
+                <h1 className={styles.friendsTitle}>End-To-End-Encryption</h1>
+                <h2 className={styles.backup}>Backup</h2>
+                <p className={styles.backupInfo} >Backing up your key allows you to access your messages from another device if this device is lost or stolen. Without the key you will be unable to access your account if you switch devices.</p>
+                <p className={styles.warning}>Do not loose the passkey or you will not be able to access your account</p>
+                <button
+                    onClick={(e) => setPopup(true)}
+                    className={styles.backupButton}
+                >
+                    Download Backup
+                </button>
                 <div className={styles.signOutButtonContainer}>
                     <button
                         onClick={() => auth.signOut()}
