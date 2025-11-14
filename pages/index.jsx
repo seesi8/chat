@@ -48,6 +48,7 @@ export default function Home() {
 
     const loadThreads = async () => {
         console.log("started")
+
         if (!data || !user || !usersThreads) return;
         console.log("here")
         const localThreads = [];
@@ -70,7 +71,7 @@ export default function Home() {
 
     useEffect(() => {
         loadThreads();
-    }, [usersThreads]);
+    }, [usersThreads, user, data]);
 
     if (!user) {
         return <Login />;

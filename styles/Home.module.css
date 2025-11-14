@@ -26,8 +26,8 @@
   background-color: transparent;
   margin: 2rem 0rem 1rem 0rem;
   border: none;
-  border-bottom: dotted 0.1rem white;
-  border-left: dotted 0.1rem white;
+  border-bottom: dotted 1px white;
+  border-left: dotted 1px white;
   border-radius: 0rem 0rem 0rem 1rem;
   display: flex;
   width: 100%;

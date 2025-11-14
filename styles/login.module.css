@@ -5,7 +5,7 @@
     color: black;
     height: 3em;
     background-color: transparent;
-    border: solid white 0.1rem;
+    border: solid white 1px;
     border-radius: .5rem;
     margin: 2vh 30vw 1vh 30vw;
     padding: 0.5rem;
@@ -37,7 +37,7 @@
 
 .create{
     color: teal;
-    border: solid teal 0.1rem;
+    border: solid teal 1px;
     padding: 0.5rem;
     border-radius: 0.5rem;
     font-size: 1rem;

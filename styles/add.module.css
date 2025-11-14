@@ -93,7 +93,7 @@
     box-sizing: 0.2rem;
     width: fit-content;
     height: fit-content;
-    padding: 0.1rem;
+    padding: 0.11rem;
     border-radius: 0.5rem;
 }
 
@@ -118,7 +118,7 @@
     height: 2rem;
     background-color: transparent;
     border-radius: 0.5rem;
-    border: solid 0.2rem rgb(101, 210, 101);
+    border: solid 1px rgb(101, 210, 101);
     width: calc(100% - 2rem);
 }
 
@@ -155,7 +155,7 @@
 .users {
     background-color: transparent;
     border: solid;
-    border-width: 0.2rem;
+    border-width: 1px;
     margin: 0.5rem 1rem 1rem 1rem;
     border-radius: 0.5rem;
     border-color: blue;
