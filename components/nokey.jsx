@@ -30,7 +30,7 @@ export default function NoKey({ setPopup, makeBackup, already }) {
                     <p className={styles.des}>Your passphrase should be multiple words or phrases.</p>
                     <p className={styles.des}>{"For example: \"The quick brown fox jumps over the lazy dog.\""}</p>
 
-
+ 
                     <div className={styles.users}>
 
                         <input
