@@ -28,7 +28,7 @@ export default function NoKey({ setPopup, makeBackup, already }) {
                 <form>
                     <p className={styles.des}>No encryption key was detected on your device. You can recover your account using the passphrase you provided during backup. <b>Please enter your passphrase below.</b></p>
                     <p className={styles.des}>Your passphrase should be multiple words or phrases.</p>
-                    <p className={styles.des}>For example: "The quick brown fox jumps over the lazy dog."</p>
+                    <p className={styles.des}>{"For example: \"The quick brown fox jumps over the lazy dog.\""}</p>
 
 
                     <div className={styles.users}>

@@ -50,7 +50,7 @@ export default function Backup({ setPopup, makeBackup, already }) {
                     <p className={styles.des}>Select a unique passphrase. <b>Do not lose the passphrase</b> or else you will not be able to access your account.</p>
                     <p className={styles.des}>We recommend storing the passphrase somewhere secure such as a password manager.</p>
                     <p className={styles.des}>A good passphrase is multiple words or phrases.</p>
-                    <p className={styles.des}>For example: "The quick brown fox jumps over the lazy dog."</p>
+                    <p className={styles.des}>{"For example: \"The quick brown fox jumps over the lazy dog.\""}</p>
 
                 </form>
                 <button
