@@ -178,7 +178,8 @@ export default function Thread({ threadId }) {
     const members = thread.data().members.filter((item) => {
       return item != user.uid;
     });
-    if (members.length != 1) {
+    // if (members.length != 1) {
+    if (true) {
       let currentMessages = messagesValue.docs;
       for (let messageIndex in currentMessages) {
         currentMessages[messageIndex] = currentMessages[messageIndex].data();
@@ -260,7 +261,8 @@ export default function Thread({ threadId }) {
 
     let encryption;
 
-    if (members.length != 1) {
+    // if (members.length != 1) {
+    if (true) {
       const decryptedKey = await getDecryptedKey();
       console.log(decryptedKey);
       encryption = await encryptGroupMessage(decryptedKey, message, user.uid);

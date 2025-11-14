@@ -134,7 +134,8 @@ export default function Popup({ setPopup }) {
   };
 
   const createGroup = async () => {
-    if (members.length < 2) {
+    // if (members.length < 2) {
+    if (false) {
       const groupId = uuidv4();
       if (groupName == "") {
         groupName = members[1].username;

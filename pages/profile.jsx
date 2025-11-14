@@ -89,12 +89,12 @@ export default function Profile({ }) {
     const downloadBackup = async (passphrase) => {
         const myPrivateKey = data.privateKey; // <-- await
 
-        const data = await storeAndDownloadKey(myPrivateKey, passphrase, user.uid, already);
+        let success = await storeAndDownloadKey(myPrivateKey, passphrase, user.uid, already);
         if (already) {
             setAlready(false)
         }
-        console.log(data)
-        if (data) {
+        console.log(success)
+        if (success) {
             setPopup(false)
             toast.success("Backup Created");
         } else {
