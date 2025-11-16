@@ -1,0 +1,98 @@
+import { useEffect, useContext, useState } from "react";
+import { UserContext } from "../lib/context";
+import { uuidv4 } from "@firebase/util";
+import Popup from "./popup";
+import {
+  addGroupMember,
+  createGroup,
+  getFriends,
+  getSuggestionsFromInput,
+  removeMember,
+  submitMember,
+} from "../lib/functions";
+import { MemberSuggestion } from "./MemberSuggestion";
+
+export default function CreateChatPopup({ setPopup }) {
+  const { user, data } = useContext(UserContext);
+  const [members, setMembers] = useState([
+    { uid: user.uid, username: data.username, publicKey: data.publicKey },
+  ]);
+  const [groupName, setGroupName] = useState([]);
+  const [currentInput, setCurrentInput] = useState("");
+  const [friends, setFriends] = useState([]);
+  const [suggestions, setSuggestion] = useState([]);
+
+  useEffect(() => {
+    getFriends(user, data, friends).then((localFriends) => {
+      localFriends;
+    });
+    setFriends;
+  }, []);
+
+  useEffect(() => {
+    setSuggestion(
+      getSuggestionsFromInput(friends, currentInput, members, user, data)
+    );
+  }, [currentInput]);
+
+  return (
+    <Popup setPopup={setPopup} title={"Create Message"}>
+      <form>
+        <input
+          placeholder={`Chat Name`}
+          required
+          value={groupName}
+          onChange={(e) => setGroupName(e.target.value)}
+          className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-full text-white px-4 text-xl mb-4"
+          type="text"
+        />
+        <p className="text-white text-xl mb-4">Add Members:</p>
+        <div className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-full text-white px-2 text-xl mb-4 flex items-center gap-2">
+          {members.map((item) => (
+            <div
+              className="border bg-transparent border-neutral-500 rounded text-white px-2 cursor-pointer"
+              key={uuidv4()}
+              onClick={(e) => {
+                setMembers(removeMember(e, item, members, user, data));
+                setCurrentInput("");
+              }}
+            >
+              <p className="text-sm my-1">{`@${item.username}`}</p>
+            </div>
+          ))}
+          <input
+            placeholder="Member Username"
+            value={currentInput}
+            onChange={(e) => setCurrentInput(e.target.value)}
+            className="bg-transparent border-none outline-none w-full"
+            type="text"
+          />
+        </div>
+        <div>
+          {suggestions.map((item) => (
+            <MemberSuggestion
+              item={item}
+              addGroupMember={(member) =>
+                submitMember(member, members, user, data)
+              }
+              setMembersData={setMembers}
+              setCurrentInput={setCurrentInput}
+            />
+          ))}
+        </div>
+      </form>
+      <button
+        onClick={() =>
+          createGroup(user, data, members, groupName).then((success) => {
+            if (success) {
+              setPopup(false);
+            }
+          })
+        }
+        className="border border-neutral-400 px-6 rounded text-white font-bold h-12 w-full"
+      >
+        <h1 className>Create</h1>
+      </button>
+    </Popup>
+  );
+}

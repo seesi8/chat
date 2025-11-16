@@ -49,7 +49,8 @@ function MyApp({ Component, pageProps }) {
         resolve();
       }, 1000));
     }
-    catch {
+    catch (e) {
+      console.log(e)
       toast.error("Wrong passphrase please try again.")
     }
   }

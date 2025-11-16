@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 html,
 body {
   padding: 0;
@@ -13,10 +17,10 @@ a {
 
 * {
   box-sizing: border-box;
-  overflow: hidden;
 }
 
-html{
-  background-color: #12181B;
+html {
+  background-color: #12181b;
   background: cover fixed;
 }
+
