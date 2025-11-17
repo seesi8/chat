@@ -4,6 +4,7 @@ import { uuidv4 } from "@firebase/util";
 import Popup from "./popup";
 import {
   addGroupMember,
+  createDm,
   createGroup,
   getFriends,
   getSuggestionsFromInput,
@@ -21,6 +22,7 @@ export default function CreateChatPopup({ setPopup }) {
   const [currentInput, setCurrentInput] = useState("");
   const [friends, setFriends] = useState([]);
   const [suggestions, setSuggestion] = useState([]);
+  const [dm, setDm] = useState(true);
 
   useEffect(() => {
     getFriends(user, data, friends).then((localFriends) => {
@@ -37,6 +39,28 @@ export default function CreateChatPopup({ setPopup }) {
 
   return (
     <Popup setPopup={setPopup} title={"Create Message"}>
+      <div className="flex w-full justify-center p-4 pt-0">
+        <button
+          className={`border ${
+            dm ? "bg-neutral-500/10" : ""
+          } p-4 w-1/2 rounded cursor-pointer mr-4`}
+          onClick={(e) => {
+            setDm(true);
+          }}
+        >
+          Direct Message
+        </button>
+        <button
+          className={`cursor-pointer  ${
+            !dm ? "bg-neutral-500/10" : ""
+          } p-4 w-1/2 border rounded`}
+          onClick={(e) => {
+            setDm(false);
+          }}
+        >
+          Group Message
+        </button>
+      </div>
       <form>
         <input
           placeholder={`Chat Name`}
@@ -73,7 +97,7 @@ export default function CreateChatPopup({ setPopup }) {
             <MemberSuggestion
               item={item}
               addGroupMember={(member) =>
-                submitMember(member, members, user, data)
+                submitMember(member, members, user, data, dm)
               }
               setMembersData={setMembers}
               setCurrentInput={setCurrentInput}
@@ -82,14 +106,22 @@ export default function CreateChatPopup({ setPopup }) {
         </div>
       </form>
       <button
-        onClick={() =>
-          createGroup(user, data, members, groupName).then((success) => {
-            if (success) {
-              setPopup(false);
-            }
-          })
-        }
-        className="border border-neutral-400 px-6 rounded text-white font-bold h-12 w-full"
+        onClick={() => {
+          if (!dm) {
+            createGroup(user, data, members, groupName).then((success) => {
+              if (success) {
+                setPopup(false);
+              }
+            });
+          } else {
+            createDm(user, data, members, groupName).then((success) => {
+              if (success) {
+                setPopup(false);
+              }
+            });
+          }
+        }}
+        className="border border-neutral-400 px-6 rounded text-white font-bold h-12 w-full"     
       >
         <h1 className>Create</h1>
       </button>

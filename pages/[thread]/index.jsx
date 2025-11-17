@@ -5,7 +5,12 @@ import { auth, firestore } from "../../lib/firebase";
 import { useRouter } from "next/router";
 import { useCollection } from "react-firebase-hooks/firestore";
 import { IoIosSettings } from "react-icons/io";
-import { decryptMessages, routeUser, sendMessage } from "../../lib/functions";
+import {
+  decryptMessages,
+  getNextKey,
+  routeUser,
+  sendMessage,
+} from "../../lib/functions";
 import { Message } from "../../components/message";
 
 export default function Thread({ threadId }) {
@@ -15,6 +20,7 @@ export default function Thread({ threadId }) {
   const [message, setMessage] = useState("");
   const [valid, setValid] = useState(false);
   const [owner, setOwner] = useState(false);
+  const [nextKey, setNextKey] = useState();
   const [messagesValue, messagesLoading, messagesError] = useCollection(
     query(
       collection(firestore, "threads", threadId, "messages"),
@@ -32,11 +38,15 @@ export default function Thread({ threadId }) {
 
   useEffect(() => {
     routeUser(auth, user, threadId, setValid, setOwner);
+    getNextKey(threadId, user, data).then((key) => {
+      console.log(key)  
+      setNextKey(key);
+    });
   }, [user, data]);
 
   useEffect(() => {
     user &&
-      data &&
+      data && 
       decryptMessages(messagesValue, threadId, user, data).then((msgs) => {
         setMessages(msgs);
       });
@@ -53,8 +63,9 @@ export default function Thread({ threadId }) {
     if (!data.privateKey) {
       return;
     }
-
-    sendMessage(threadId, message, user, data);
+    sendMessage(threadId, message, user, data, nextKey).then((key) => {
+      setNextKey(key)
+    });
     setMessage("");
   };
 

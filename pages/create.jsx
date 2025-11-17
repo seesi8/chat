@@ -1,4 +1,5 @@
-import { useState } from "react";import { auth } from "../lib/firebase";
+import { useState } from "react";
+import { auth } from "../lib/firebase";
 import toast from "react-hot-toast";
 import { useRouter } from "next/router";
 import { createUser, uploadImage } from "../lib/functions";
@@ -56,19 +57,26 @@ export default function Create({}) {
       <label className="text-2xl w-full text-center block mb-4">
         Profile Picture
       </label>
-      <label class="flex items-center justify-center w-2/3 h-12 px-4 rounded border border-neutral-500 text-white cursor-pointer relative right-3 my-2">
+      <label className="flex items-center justify-center w-2/3 h-12 px-4 rounded border border-neutral-500 text-white cursor-pointer relative right-3 my-2">
         <span>Select Image</span>
 
         <input
           type="file"
-          class="hidden"
+          className="hidden"
           onChange={(e) => uploadImage(e, setStoreageUrl)}
           accept=".gif,.jpg,.jpeg,.png"
         />
       </label>
 
       <button
-        disabled={!((storageUrl ? true : false) && (displayName != "") && (email != "") && (password != ""))}
+        disabled={
+          !(
+            (storageUrl ? true : false) &&
+            displayName != "" &&
+            email != "" &&
+            password != ""
+          )
+        }
         className="border border-neutral-400 px-6 rounded text-white font-bold h-12 w-1/2 my-2 disabled:opacity-40"
       >
         Submit
