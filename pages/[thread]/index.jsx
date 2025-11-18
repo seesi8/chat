@@ -21,6 +21,7 @@ export default function Thread({ threadId }) {
   const [valid, setValid] = useState(false);
   const [owner, setOwner] = useState(false);
   const [nextKey, setNextKey] = useState();
+  const [currentKeyVersion, setCurrentKeyVersion] = useState(undefined);
   const [messagesValue, messagesLoading, messagesError] = useCollection(
     query(
       collection(firestore, "threads", threadId, "messages"),
@@ -39,14 +40,17 @@ export default function Thread({ threadId }) {
   useEffect(() => {
     routeUser(auth, user, threadId, setValid, setOwner);
     getNextKey(threadId, user, data).then((key) => {
-      console.log(key)  
-      setNextKey(key);
+      if (key) {
+        console.log("KEY", key)
+        setNextKey(key.key);
+        setCurrentKeyVersion(key.version);
+      }
     });
   }, [user, data]);
 
   useEffect(() => {
     user &&
-      data && 
+      data &&
       decryptMessages(messagesValue, threadId, user, data).then((msgs) => {
         setMessages(msgs);
       });
@@ -63,9 +67,11 @@ export default function Thread({ threadId }) {
     if (!data.privateKey) {
       return;
     }
-    sendMessage(threadId, message, user, data, nextKey).then((key) => {
-      setNextKey(key)
-    });
+    sendMessage(threadId, message, user, data, nextKey, currentKeyVersion).then(
+      (key) => {
+        setNextKey(key);
+      }
+    );
     setMessage("");
   };
 

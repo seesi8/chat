@@ -12,9 +12,11 @@ import {
   getSuggestionsFromInput,
   getThreadData,
   removeGroupMember,
+  rotate,
 } from "../../lib/functions";
 import { Member } from "../../components/member";
 import { MemberSuggestion } from "../../components/MemberSuggestion";
+import toast from "react-hot-toast";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -94,50 +96,56 @@ export default function SettingsPage() {
           </button>
         </div>
         <h2 className="text-2xl mb-2">Members</h2>
-        {membersData &&
-          membersData.map((_item) => (
-            <Member
-              item={_item}
-              removeGroupMember={removeGroupMember}
-              threadData={threadData}
-              thread={thread}
-              membersData={membersData}
-              setMembersData={setMembersData}
+        {threadData && !threadData.dm ? <>
+          {membersData &&
+            membersData.map((_item) => (
+              <Member
+                item={_item}
+                removeGroupMember={removeGroupMember}
+                threadData={threadData}
+                thread={thread}
+                membersData={membersData}
+                setMembersData={setMembersData}
+              />
+            ))}
+          <h3 className="text-xl mb-2">Add Members:</h3>
+          <div className="">
+            <input
+              placeholder="Member Username"
+              value={currentInput}
+              onChange={(e) => setCurrentInput(e.target.value)}
+              className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-1/2 text-white px-4"
+              type="text"
             />
-          ))}
-        <h3 className="text-xl mb-2">Add Members:</h3>
-        <div className="">
-          <input
-            placeholder="Member Username"
-            value={currentInput}
-            onChange={(e) => setCurrentInput(e.target.value)}
-            className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-1/2 text-white px-4"
-            type="text"
-          />
-        </div>
-        <div className="">
-          {suggestions.map((item) => (
-            <MemberSuggestion
-              item={item}
-              addGroupMember={(member) => {
-                return addGroupMember(
-                  member,
-                  thread,
-                  threadData,
-                  membersData,
-                  user,
-                  data
-                );
-              }}
-              setCurrentInput={setCurrentInput}
-              setMembersData={setMembersData}
-            />
-          ))}
-        </div>
+          </div>
+          <div className="">
+            {suggestions.map((item) => (
+              <MemberSuggestion
+                item={item}
+                addGroupMember={(member) => {
+                  return addGroupMember(
+                    member,
+                    thread,
+                    threadData,
+                    membersData,
+                    user,
+                    data
+                  );
+                }}
+                setCurrentInput={setCurrentInput}
+                setMembersData={setMembersData}
+              />
+            ))}
+          </div>
+        </> : ""}
         <h2 className="text-2xl my-2">End to End Encryption</h2>
         <button
           className="border border-neutral-400 px-6 rounded text-white font-bold h-12"
-          onClick={() => rotate()}
+          onClick={() =>
+            rotate(threadData, membersData, thread, user, data).then(() =>
+              toast.success("Successfully rotated key")
+            )
+          }
         >
           Rotate Encryption Key
         </button>
