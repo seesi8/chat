@@ -5,6 +5,7 @@ import Popup from "./popup";
 import {
   addGroupMember,
   createDm,
+  createDRDM,
   createGroup,
   getFriends,
   getSuggestionsFromInput,
@@ -114,7 +115,7 @@ export default function CreateChatPopup({ setPopup }) {
               }
             });
           } else {
-            createDm(user, data, members, groupName).then((success) => {
+            createDRDM(user, data, members, groupName).then((success) => {
               if (success) {
                 setPopup(false);
               }
