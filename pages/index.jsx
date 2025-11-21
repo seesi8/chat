@@ -11,6 +11,7 @@ import {
   generateAndStoreSupplementalKeyPairs,
   loadThreads,
   sendWelcomeMessage,
+  test,
   x3dh,
 } from "../lib/functions";
 
@@ -51,9 +52,8 @@ export default function Home() {
         {threads && threads.map((el) => <Thread key={uuidv4()} thread={el} />)}
         <button
           onClick={() =>
-            x3dh(user, data, data).then((_data) => {
+            test(user, data, data).then((_data) => {
               console.log(_data);
-              sendWelcomeMessage(user, data)
             })
           }
           className="absolute right-5 bottom-5 h-20 w-20 bg-green-500 rounded font-bold text-black cursor-pointer"

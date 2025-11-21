@@ -39,13 +39,13 @@ export default function Thread({ threadId }) {
 
   useEffect(() => {
     routeUser(auth, user, threadId, setValid, setOwner);
-    getNextKey(threadId, user, data).then((key) => {
-      if (key) {
-        console.log("KEY", key)
-        setNextKey(key.key);
-        setCurrentKeyVersion(key.version);
-      }
-    });
+    // getNextKey(threadId, user, data).then((key) => {
+    //   if (key) {
+    //     console.log("KEY", key)
+    //     setNextKey(key.key);
+    //     setCurrentKeyVersion(key.version);
+    //   }
+    // });
   }, [user, data]);
 
   useEffect(() => {
