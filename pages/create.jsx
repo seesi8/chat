@@ -20,6 +20,7 @@ export default function Create({}) {
 
     createUser(auth, email, password, displayName, storageUrl).then(
       (success) => {
+        console.log("success", success)
         if (success) {
           router.push("/");
         }
