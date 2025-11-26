@@ -24,3 +24,21 @@ html {
   background: cover fixed;
 }
 
+/* Chrome, Edge, Safari */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #111;      /* track (background) */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;      /* thumb */
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+

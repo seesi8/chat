@@ -65,7 +65,7 @@ export default function Create({}) {
           type="file"
           className="hidden"
           onChange={(e) => uploadImage(e, setStoreageUrl)}
-          accept=".gif,.jpg,.jpeg,.png"
+          accept=".gif,.jpg,.jpeg,.png,.webp,.avif"
         />
       </label>
 

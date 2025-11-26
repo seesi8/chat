@@ -3,8 +3,6 @@ import { UserContext } from "../lib/context";
 import { uuidv4 } from "@firebase/util";
 import Popup from "./popup";
 import {
-  addGroupMember,
-  createDm,
   createDRDM,
   createGroup,
   getFriends,
