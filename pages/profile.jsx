@@ -7,7 +7,7 @@ import { Person } from "../components/person";
 import { storeAndDownloadKey } from "../lib/e2ee/firebase";
 import Backup from "../components/backup";
 import toast from "react-hot-toast";
-import { getCurrentMembers } from "../lib/functions";
+import { getCurrentMembers, storeAndDownloadBackup } from "../lib/functions";
 
 export default function Profile({}) {
   const { user, data } = useContext(UserContext);
@@ -33,14 +33,8 @@ export default function Profile({}) {
   }
 
   const downloadBackup = async (passphrase) => {
-    const myPrivateKey = data.privateKey;
-
-    let success = await storeAndDownloadKey(
-      myPrivateKey,
-      passphrase,
-      user.uid,
-      already
-    );
+    let success = await storeAndDownloadBackup(passphrase, user, data, already)
+    
     if (already) {
       setAlready(false);
     }

@@ -8,7 +8,7 @@ export default function NoKey({ setPopup, makeBackup }) {
 
   return (
     <Popup title={"Lost your key?"}>
-      <form>
+      <form onSubmit={(e) => {e.preventDefault()}}>
         <p className="my-2">
           No encryption key was detected on your device. You can recover your
           account using the passphrase you provided during backup.{" "}

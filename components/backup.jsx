@@ -6,7 +6,7 @@ export default function Backup({ setPopup, makeBackup, already }) {
 
   return (
     <Popup setPopup={setPopup} title={"Create Backup"}>
-      <form>
+      <form onSubmit={(e) => {e.preventDefault()}}>
         <div className="">
           <input
             placeholder="Passphrase"

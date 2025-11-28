@@ -10,6 +10,7 @@ import Header from '../components/header';
 import NoKey from '../components/nokey';
 import { restoreKey } from '../lib/e2ee/e2ee';
 import { doc, getDoc } from 'firebase/firestore';
+import { restoreBackup } from '../lib/functions';
 
 function MyApp({ Component, pageProps }) {
 
@@ -28,31 +29,7 @@ function MyApp({ Component, pageProps }) {
   }, [userData])
 
   const makeBackup = async (passphrase) => {
-    const requestRef = doc(
-      firestore,
-      "backups",
-      userData.user.uid
-    );
-
-    const data = (await getDoc(requestRef)).data()
-
-    const cypherText = data["aead"]["ciphertext"]
-    const salt = data["kdf"]["salt"]
-    const nonce = data["aead"]["nonce"]
-    try {
-      console.log("here")
-      await restoreKey(cypherText, salt, passphrase, nonce, false)
-      setPopup(false)
-      toast.success("Account recovered. Please wait while we reload the page.")
-      new Promise(resolve => setTimeout(() => {
-        window.location.reload(true);
-        resolve();
-      }, 1000));
-    }
-    catch (e) {
-      console.log(e)
-      toast.error("Wrong passphrase please try again.")
-    }
+    restoreBackup(userData, passphrase, setPopup)
   }
 
   return (
