@@ -9,32 +9,26 @@ const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
 const db = getFirestore();
 // HTTP function: addmessage
-exports.addmessage = onRequest(async (req, res) => {
+exports.addOPK = onCall(async (req, context) => {
     try {
         // Read from query string or JSON body
         const key =
-            req.query.key !== undefined ? req.query.key : req.body?.key ?? null;
+            req.data?.key ?? null;
         const index =
-            req.query.index !== undefined ? req.query.index : req.body?.index ?? null;
+            req.data?.index ?? null;
         const uid =
-            req.query.uid !== undefined ? req.query.uid : req.body?.uid ?? null;
+            req.data?.uid ?? null;
 
-        console.log(req.query)
 
         // Basic validation
         if (!key) {
-            res.status(400).json({ error: "Missing 'key' (use ?key= or JSON body)" });
-            return;
+            return ({ error: "Missing 'key' (use ?key= or JSON body)" });
         }
         if (!index) {
-            res
-                .status(400)
-                .json({ error: "Missing 'index' (use ?index= or JSON body)" });
-            return;
+            return ({ error: "Missing 'index' (use ?index= or JSON body)" });
         }
         if (!uid) {
-            res.status(400).json({ error: "Missing 'uid' (use ?uid= or JSON body)" });
-            return;
+            return ({ error: "Missing 'uid' (use ?uid= or JSON body)" });
         }
 
 
@@ -50,33 +44,15 @@ exports.addmessage = onRequest(async (req, res) => {
             index
         });
 
-        res.json({
+        return ({
             result: `Message stored at users/${uid}/OPK/${index}.`,
         });
     } catch (e) {
         console.error("addmessage ERROR", e);
-        res.status(500).json({ error: e.toString() });
+        return ({ error: e.toString() });
     }
 });
 
-// Firestore trigger: makeuppercase
-exports.makeuppercase = onDocumentCreated("messages/{documentId}", async (event) => {
-    try {
-        const data = event.data.data();
-        const original = data.original;
-
-        logger.log("Uppercasing", event.params.documentId, original);
-
-        const uppercase = original.toUpperCase();
-
-        await event.data.ref.set({ uppercase }, { merge: true });
-
-        return;
-    } catch (e) {
-        logger.error("makeuppercase ERROR", e);
-        throw e;
-    }
-});
 exports.getOPK = onCall(async (request) => {
     const uid = request.data?.uid;
     if (!uid) {
