@@ -39,6 +39,9 @@ service cloud.firestore {
       allow create: if request.auth != null && validUsername();
     }
 
+    match /messages/{messageId} {
+      allow write: if true;
+    }
 
     function canRequest(){
       let hadFeilds = request.resource.data.keys().hasAll(['to', 'from']);

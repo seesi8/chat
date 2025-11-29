@@ -18,7 +18,7 @@ export default function Header({}) {
       {add && <AddFriend setPopup={setAdd} />}
       <div className="fixed flex w-full top-0 p-2 left-0 items-center border-b text-white justify-between px-5 bg-neutral-900">
         <Link href={"/"}>
-          <a className="font-bold text-2xl">Keyline</a>
+          <a className="font-bold text-2xl">CipherLine.net</a>
         </Link>
         {user && (
           <div className="flex gap-8">
