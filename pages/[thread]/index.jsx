@@ -10,6 +10,7 @@ import {
   getNextKey,
   routeUser,
   sendMessage,
+  testThread,
 } from "../../lib/functions";
 import { Message } from "../../components/message";
 
@@ -20,8 +21,6 @@ export default function Thread({ threadId }) {
   const [message, setMessage] = useState("");
   const [valid, setValid] = useState(false);
   const [owner, setOwner] = useState(false);
-  const [nextKey, setNextKey] = useState();
-  const [currentKeyVersion, setCurrentKeyVersion] = useState(undefined);
   const [messagesValue, messagesLoading, messagesError] = useCollection(
     query(
       collection(firestore, "threads", threadId, "messages"),
@@ -39,13 +38,6 @@ export default function Thread({ threadId }) {
 
   useEffect(() => {
     routeUser(auth, user, threadId, setValid, setOwner);
-    // getNextKey(threadId, user, data).then((key) => {
-    //   if (key) {
-    //     console.log("KEY", key)
-    //     setNextKey(key.key);
-    //     setCurrentKeyVersion(key.version);
-    //   }
-    // });
   }, [user, data]);
 
   useEffect(() => {
@@ -67,11 +59,7 @@ export default function Thread({ threadId }) {
     if (!data.privateKey) {
       return;
     }
-    sendMessage(threadId, message, user, data, nextKey, currentKeyVersion).then(
-      (key) => {
-        setNextKey(key);
-      }
-    );
+    sendMessage(threadId, message, user, data)
     setMessage("");
   };
 
@@ -102,6 +90,16 @@ export default function Thread({ threadId }) {
           Send
         </button>
       </form>
+      <button
+        onClick={() =>
+          testThread(user, data, threadId).then((_data) => {
+            console.log(_data);
+          })
+        }
+        className="fixed right-5 bottom-5 h-20 w-20 bg-green-500 rounded font-bold text-black cursor-pointer"
+      >
+        test
+      </button>
     </main>
   );
 }

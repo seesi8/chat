@@ -4,7 +4,6 @@ import { UserContext } from "../lib/context";
 import { auth } from "../lib/firebase";
 import Login from "../components/login";
 import { Person } from "../components/person";
-import { storeAndDownloadKey } from "../lib/e2ee/firebase";
 import Backup from "../components/backup";
 import toast from "react-hot-toast";
 import { getCurrentMembers, storeAndDownloadBackup } from "../lib/functions";
