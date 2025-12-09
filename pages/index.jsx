@@ -34,7 +34,6 @@ export default function Home() {
   );
 
   useEffect(() => {
-    console.log(!usersThreadsLoading)
     if (!usersThreadsLoading) {
       loadThreads(data, user, usersThreads).then((loadedThreads) => {
         setThreads(loadedThreads);
@@ -73,7 +72,7 @@ export default function Home() {
         <button
           onClick={() =>
             test(user, data, data).then((_data) => {
-              console.log(_data);
+              // console.log(_data);
             })
           }
           className="fixed right-5 bottom-5 h-20 w-20 bg-green-500 rounded font-bold text-black cursor-pointer"
