@@ -66,7 +66,7 @@ export default function Home() {
             setThreadCount(threadCount + 2);
           }
         }}
-      >
+      > 
         <h1 className="text-4xl font-bold text-white">Threads</h1>
         {threads && threads.map((el) => <Thread key={el.id} thread={el} />)}
         <button
