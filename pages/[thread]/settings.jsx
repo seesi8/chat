@@ -106,6 +106,7 @@ export default function SettingsPage() {
                 thread={thread}
                 membersData={membersData}
                 setMembersData={setMembersData}
+                key={_item.uid}
               />
             ))}
           <h3 className="text-xl mb-2">Add Members:</h3>
@@ -122,6 +123,7 @@ export default function SettingsPage() {
             {suggestions.map((item) => (
               <MemberSuggestion
                 item={item}
+                key={item.uid}
                 addGroupMember={(member) => {
                   return addGroupMember(
                     member,
