@@ -19,9 +19,11 @@ TEST 2 — Skip on A-run, B interleaves, then recover
 A0
 A1
 A2 (lost)
-B0
+B012/14/2025 8:21:13 PM
 A3
 (recovered A2)
+
+
 
 ========================================================
 TEST 3 — Lose B0 (first of B-run is allowed), then recover
