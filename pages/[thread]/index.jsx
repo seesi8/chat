@@ -55,7 +55,7 @@ export default function Thread({ threadId }) {
     }
     if (!message) {
       return;
-    }
+    } 
     if (!data.privateKey) {
       return;
     }
