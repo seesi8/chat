@@ -5,7 +5,10 @@ import Image from "next/image";
 export function MemberSuggestion({ item, addGroupMember, setMembersData, setCurrentInput }) {
   const { user, data } = useContext(UserContext);
   return (
-    <div className="w-2/5 mb-4 flex" key={item.username}>
+    <div
+      className="w-2/5 mb-4 flex"
+      data-testid={`member-suggestion-${item.uid}`}
+    >
       <div
         type="button"
         className="border bg-transparent border-neutral-500 rounded mr-6 w-1/2 min-w-fit text-white px-4 flex p-2 items-center "

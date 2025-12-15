@@ -28,11 +28,13 @@ export default function NoKey({ setPopup, makeBackup }) {
           onChange={(e) => setCurrentInput(e.target.value)}
           type="text"
           required={true}
+          data-testid="lost-key-passphrase"
         />
       </form>
       <button
         onClick={() => makeBackup(currentInput)}
         className="border border-neutral-400 px-6 rounded text-white font-bold h-12 mt-5 w-full"
+        data-testid="lost-key-restore"
       >
         <h1>Restore</h1>
       </button>

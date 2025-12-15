@@ -25,6 +25,7 @@ export default function Header({}) {
             <button
               onClick={() => (setPopup(popup ? false : true), setAdd(false))}
               className="text-3xl"
+              aria-label="Create chat"
             >
               <IoCreateOutline />
             </button>
@@ -40,6 +41,7 @@ export default function Header({}) {
             <button
               onClick={() => (setAdd(add ? false : true), setPopup(false))}
               className="text-3xl"
+              aria-label="Add friend"
             >
               <FaUserPlus />
             </button>

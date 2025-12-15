@@ -32,3 +32,21 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+
+## End-to-end testing
+
+A Playwright suite lives in `playwright/tests`. It launches the dev server, signs into the app, and spins up a direct message with one other user. Provide the credentials via environment variables and run:
+
+```bash
+E2E_USER_EMAIL=user@example.com \
+E2E_USER_PASSWORD=secretpass \
+E2E_FRIEND_USERNAME=friend123 \
+# optional:
+# E2E_BACKUP_PASSPHRASE="hi" \
+# E2E_THREAD_NAME="QA run" \
+npm run e2e
+```
+
+See `docs/playwright.md` for detailed setup instructions.
+
+The suite first runs two setup projects: one signs into the existing account and stores the raw session in `playwright/.auth/login.json`, and the next loads that state to restore the encryption key and write `playwright/.auth/user.json`. It ends with a teardown project that visits `/profile` and downloads a fresh backup before the run exits. Follow the docs if you need to refresh/remove those cached sessions.

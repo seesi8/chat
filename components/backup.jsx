@@ -15,6 +15,7 @@ export default function Backup({ setPopup, makeBackup, already }) {
             onChange={(e) => setCurrentInput(e.target.value)}
             type="text"
             required={true}
+            data-testid="backup-passphrase"
           />
         </div>
         {already ? (
@@ -43,6 +44,7 @@ export default function Backup({ setPopup, makeBackup, already }) {
       <button
         onClick={() => makeBackup(currentInput)}
         className="border border-neutral-400 px-6 rounded text-white font-bold h-12 mt-5 w-full"
+        data-testid="backup-create"
       >
         <h1 className="">Create</h1>
       </button>

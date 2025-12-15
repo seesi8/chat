@@ -1,6 +1,5 @@
 import { useEffect, useContext, useState } from "react";
 import { UserContext } from "../lib/context";
-import { uuidv4 } from "@firebase/util";
 import Popup from "./popup";
 import {
   createDRDM,
@@ -74,7 +73,8 @@ export default function CreateChatPopup({ setPopup }) {
           {members.map((item) => (
             <div
               className="border bg-transparent border-neutral-500 rounded text-white px-2 cursor-pointer"
-              key={uuidv4()}
+              key={item.uid}
+              data-testid={`selected-member-${item.uid}`}
               onClick={(e) => {
                 setMembers(removeMember(e, item, members, user, data));
                 setCurrentInput("");
@@ -94,6 +94,7 @@ export default function CreateChatPopup({ setPopup }) {
         <div>
           {suggestions.map((item) => (
             <MemberSuggestion
+              key={item.uid}
               item={item}
               addGroupMember={(member) =>
                 submitMember(member, members, user, data, dm)
@@ -122,7 +123,7 @@ export default function CreateChatPopup({ setPopup }) {
         }}
         className="border border-neutral-400 px-6 rounded text-white font-bold h-12 w-full"     
       >
-        <h1 className>Create</h1>
+        <h1>Create</h1>
       </button>
     </Popup>
   );
