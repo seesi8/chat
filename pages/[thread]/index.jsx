@@ -9,7 +9,7 @@ import {
   decryptMessages,
   getNextKey,
   routeUser,
-  sendMessage,
+  sendMessageWithLock,
   testThread,
 } from "../../lib/functions";
 import { Message } from "../../components/message";
@@ -59,7 +59,7 @@ export default function Thread({ threadId }) {
     if (!data.privateKey) {
       return;
     }
-    sendMessage(threadId, message, user, data)
+    sendMessageWithLock(threadId, message, user, data)
     setMessage("");
   };
 

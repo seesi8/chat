@@ -33,7 +33,7 @@ export default function AddFriend({ setPopup }) {
 
   return (
     <Popup title={"Add Friend"} setPopup={setPopup}>
-      <form onSubmit={(e) => submitUsername(e, suggestions[0].id, user, data)}>
+      <form onSubmit={(e) => submitUsername(e, suggestions[0].id, user, data)} className="max-h-[85%] overflow-y-scroll overflow-x-hidden">
         <div className="">
           <input
             placeholder="Member Username"
@@ -43,7 +43,7 @@ export default function AddFriend({ setPopup }) {
             type="text"
           />
         </div>
-        <div className="">
+        <div className="max-h-full">
           {suggestions.map((item) => (
             <Person key={item.uid} item={item} />
           ))}

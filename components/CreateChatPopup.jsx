@@ -40,8 +40,8 @@ export default function CreateChatPopup({ setPopup }) {
       <div className="flex w-full justify-center p-4 pt-0">
         <button
           className={`border ${
-            dm ? "bg-neutral-500/10" : ""
-          } p-4 w-1/2 rounded cursor-pointer mr-4`}
+            dm ? "bg-neutral-500/15" : ""
+          } p-4 w-1/2 rounded cursor-pointer mr-4 min-w-fit`}
           onClick={(e) => {
             setDm(true);
           }}
@@ -50,8 +50,8 @@ export default function CreateChatPopup({ setPopup }) {
         </button>
         <button
           className={`cursor-pointer  ${
-            !dm ? "bg-neutral-500/10" : ""
-          } p-4 w-1/2 border rounded`}
+            !dm ? "bg-neutral-500/15" : ""
+          } p-4 w-1/2 border rounded min-w-fit`}
           onClick={(e) => {
             setDm(false);
           }}
