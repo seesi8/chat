@@ -64,7 +64,7 @@ export default function Create({}) {
         <input
           type="file"
           className="hidden"
-          onChange={(e) => uploadImage(e, setStoreageUrl)}
+          onChange={(e) => uploadImage(setStoreageUrl, e)}
           accept=".gif,.jpg,.jpeg,.png,.webp,.avif"
         />
       </label>
