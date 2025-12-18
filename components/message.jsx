@@ -1,24 +1,32 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { base64ToBlob } from "../lib/e2ee/e2ee";
+import { FaFile } from "react-icons/fa";
+import { FaCloudDownloadAlt } from "react-icons/fa";
 
 export function Message({ message }) {
   const [fileUrls, setFileUrls] = useState([]);
+  const [files, setFiles] = useState([])
 
   useEffect(() => {
-    if (message.type !== 0x03) return;
+    if (message.type == 0x03) {
+      const urls = message.messages.map((file) => {
+        const blob = base64ToBlob(file);
+        return window.URL.createObjectURL(blob);
+      });
 
-    const urls = message.messages.map((file) => {
-      const blob = base64ToBlob(file);
-      console.log(blob)
-      return window.URL.createObjectURL(blob);
-    });
+      setFileUrls(urls);
+    }
+    else if (message.type == 0x04) {
+      const blobs = message.messages.map((file) => {
+        const blob = base64ToBlob(file.content, { type: file.type });
+        file.blob = blob
+        file.url = window.URL.createObjectURL(blob);
+        return file
+      });
 
-    setFileUrls(urls);
-
-    // return () => {
-    //   urls.forEach((url) => window.URL.revokeObjectURL(url));
-    // };
+      setFiles(blobs);
+    }
   }, [message]);
 
   return (
@@ -52,13 +60,29 @@ export function Message({ message }) {
             return (
               <div
                 key={i}
-                className="relative w-24 h-24 rounded-xl overflow-hidden m-4"
+                className="relative h-24 max-w-4/5 rounded-xl overflow-hidden m-4"
               >
                 <img
                   src={url}
                   alt="uploaded"
                   className="w-full h-full object-cover"
                 />
+              </div>
+            )
+          })}
+
+        {message.type === 0x04 &&
+          files.map((file, i) => {
+            return (
+              <div
+                key={file}
+                className="relative w-24 h-24 rounded-xl overflow-hidden m-4 bg-gray-800 text-xs p-2 text-nowrap"
+              >
+                <div className="w-full flex pb-2 justify-center">
+                  <FaFile className="text-4xl" />
+                </div>
+                <p className="text-ellipsis overflow-hidden w-full">{file.name}</p>
+                <a type="button" className="w-full border rounded mt-1 flex items-center justify-center cursor-pointer" download href={file.url}><span className="pr-1">Download </span> <FaCloudDownloadAlt /></a>
               </div>
             )
           })}

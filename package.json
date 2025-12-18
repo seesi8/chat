@@ -16,7 +16,10 @@
   "dependencies": {
     "@browserbasehq/stagehand": "^3.0.6",
     "@digitalbazaar/minimal-cipher": "^6.0.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@firebase/testing": "^0.20.11",
+    "@mui/material": "^7.3.6",
     "@signalapp/libsignal-client": "^0.86.0",
     "@stablelib/base64": "^2.0.1",
     "@stablelib/x25519": "^2.0.1",

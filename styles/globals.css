@@ -30,11 +30,13 @@ html {
 }
 
 ::-webkit-scrollbar-track {
-  background: #111;      /* track (background) */
+  background: #111;
+  /* track (background) */
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333;      /* thumb */
+  background: #333;
+  /* thumb */
   border-radius: 6px;
 }
 
@@ -42,3 +44,12 @@ html {
   background: #444;
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
