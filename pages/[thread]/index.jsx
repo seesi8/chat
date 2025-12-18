@@ -8,9 +8,13 @@ import { auth, firestore } from "../../lib/firebase";
 import { useRouter } from "next/router";
 import { useCollection } from "react-firebase-hooks/firestore";
 import { IoIosSettings } from "react-icons/io";
+import { PiPhoneTransferFill } from "react-icons/pi";
 import {
+  answerHandler,
+  callHandler,
   decryptMessages,
   getNextKey,
+  handleCallConnection,
   routeUser,
   sendFileWithLock,
   sendMessageWithLock,
@@ -18,6 +22,7 @@ import {
   testThread,
   uploadImage,
   uploadImages,
+  webCamHandler,
 } from "../../lib/functions";
 import { Message } from "../../components/message";
 import Image from "next/image";
@@ -35,6 +40,7 @@ export default function Thread({ threadId }) {
   const [images, setImages] = useState([]);
   const [files, setFiles] = useState([]);
   const [otherFiles, setOtherFiles] = useState([]);
+
   const [messagesValue, messagesLoading, messagesError] = useCollection(
     query(
       collection(firestore, "threads", threadId, "messages"),
@@ -121,17 +127,22 @@ export default function Thread({ threadId }) {
 
   return (
     <main className="mb-24 mt-16">
-      <div className="fixed text-4xl text-white w-full flex justify-end pr-2 top-14">
+      <div className="fixed text-4xl text-white w-full flex justify-end pr-2 top-14 z-10">
+        <a type="button" href={`${router.asPath}/call`}>
+          <PiPhoneTransferFill className="mr-4" />
+        </a>
         {owner && (
           <IoIosSettings
             onClick={(e) => router.push(`/${threadId}/settings`)}
           />
         )}
       </div>
-      {messages &&
-        messages.map((el) => {
-          return <Message message={el} key={el.key} />;
-        })}
+      <div className="">
+        {messages &&
+          messages.map((el) => {
+            return <Message message={el} key={el.key} />;
+          })}
+      </div>
       <div ref={bottomOfMessages} />
       <div>
         <form
@@ -146,7 +157,7 @@ export default function Thread({ threadId }) {
                     key={url}
                     className="relative w-24 h-24 rounded-xl overflow-hidden m-4"
                   >
-                    <button type="button" className="absolute left-2 top-2 text-white text-xl" onClick={(e) => { removeImage({url, file}) }}><IoIosCloseCircle /></button>
+                    <button type="button" className="absolute left-2 top-2 text-white text-xl" onClick={(e) => { removeImage({ url, file }) }}><IoIosCloseCircle /></button>
                     <img
                       src={url}
                       alt="uploaded"
@@ -196,13 +207,11 @@ export default function Thread({ threadId }) {
             </div>
           </div>
         </form>
+
       </div>
       <button
-        onClick={() =>
-          testThread(user, data, threadId).then((_data) => {
-            console.log(_data);
-          })
-        }
+        onClick={async () => {
+        }}
         className="fixed right-5 bottom-5 h-20 w-20 bg-green-500 rounded font-bold text-black cursor-pointer"
       >
         test
