@@ -1,12 +1,12 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { answerHandler, callHandler, createCallRequest, deleteCallRequest, getThreadData, webCamHandler } from '../../lib/functions';
+import { acceptCallRequest, answerHandler, callHandler, createCallRequest, deleteCallRequest, getCameras, getThreadData, hangupHandler, webCamHandler } from '../../lib/functions';
 import { PiPhoneTransferFill } from 'react-icons/pi';
 import { useRouter } from 'next/router';
 import { UserContext } from '../../lib/context';
 import { useCollection, useDocument } from 'react-firebase-hooks/firestore';
-import { collection, doc, query, where } from "firebase/firestore"
+import { collection, doc, orderBy, query, where } from "firebase/firestore"
 import { firestore } from '../../lib/firebase';
 
 export default function CallPage() {
@@ -16,17 +16,20 @@ export default function CallPage() {
     const remoteVideoRef = useRef();
     var options = { mimeType: 'video/webm; codecs=vp9' };
     let mediaRecorder = null;
-    const webcamButtonRef = useRef();
+    const unsubscribeRef = useRef();
     const webcamVideoRef = useRef();
     const router = useRouter();
     const { thread: threadId } = router.query;
     const [requestId, setRequestId] = useState()
     const [threadData, setThreadData] = useState(null);
+    const [request, setRequest] = useState();
+    const [cameras, setCameras] = useState([]);
 
     const callRequestsQuery = threadId
         ? query(
             collection(firestore, "callRequests"),
-            where("threadId", "==", threadId)
+            where("threadId", "==", threadId),
+            orderBy("timeCreated", "asc")
         )
         : null;
     const [snapshot, loading, error] = useCollection(
@@ -43,7 +46,29 @@ export default function CallPage() {
     }, [threadId]);
 
     useEffect(() => {
-        console.log(snapshot)
+        if (snapshot == undefined) {
+            setRequest(undefined)
+            return
+        }
+        if (snapshot.docs == undefined) {
+            setRequest(undefined)
+            return
+        }
+        if (snapshot.docs.length > 1) {
+            for (let i = 0; i < snapshot.docs.length - 1; i++) {
+                const currentDoc = snapshot.docs[i]
+                deleteCallRequest(currentDoc.id)
+            }
+        }
+        let correctDoc = snapshot.docs[snapshot.docs.length - 1]
+        if (correctDoc) {
+            let id = correctDoc.id
+            correctDoc = correctDoc.data()
+            correctDoc.id = id
+            setRequest(correctDoc)
+        } else {
+            setRequest(undefined)
+        }
     }, [snapshot])
 
     const servers = {
@@ -64,6 +89,20 @@ export default function CallPage() {
         console.log(_requestId)
         setRequestId(_requestId);
     }
+
+    const createPC = () => {
+        const pc = new RTCPeerConnection(servers);
+
+        pc.ontrack = (event) => {
+            if (remoteVideoRef.current) {
+                remoteVideoRef.current.srcObject = event.streams[0];
+            }
+        };
+
+        pcRef.current = pc;
+        return pc;
+    };
+
 
     useEffect(() => {
         const pc = new RTCPeerConnection(servers);
@@ -93,62 +132,119 @@ export default function CallPage() {
         }
     }, [requestId])
 
+    useEffect(() => {
+        if (request == undefined) {
+            hangupHandler({ pcRef, localStreamRef, remoteStreamRef, webcamVideoRef, remoteVideoRef, unsubscribeRef, request })
+            console.log(remoteVideoRef.current.srcObject)
+            pcRef.current = null;
+        }
+    }, [request])
+
+
 
     useEffect(() => {
         pcRef.current = new RTCPeerConnection(servers);
-        return () => pcRef.current?.close();
+        return () => {
+            hangupHandler({ pcRef, localStreamRef, remoteStreamRef, webcamVideoRef, remoteVideoRef, unsubscribeRef, request })
+            pcRef.current = null;
+        };
     }, []);
     return (
         <>
             <div className="pt-14 text-white flex justify-center flex-wrap">
                 <h1 className="font-bold text-3xl w-full text-center">Create Call With {threadData && threadData.groupName}</h1>
-                <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
-                    submitCallRequest()
+                {request == undefined ?
+                    <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
+                        submitCallRequest()
+                        const pc = createPC();
 
-                    // remoteStreamRef.current = await webCamHandler(pcRef.current, threadId, webcamVideoRef, localStreamRef.current, options, mediaRecorder, remoteVideoRef)
-                    // callHandler(pcRef.current, threadId)
-                }}>
-                    Create Call
-                </button>
+                        const { remoteStream, localStream } = await webCamHandler(
+                            pc,
+                            webcamVideoRef,
+                            remoteVideoRef
+                        );
+
+                        remoteStreamRef.current = remoteStream;
+                        localStreamRef.current = localStream;
+                        unsubscribeRef.current = await callHandler(pcRef.current, threadId)
+                    }}>
+                        Create Call
+                    </button> : ""
+                }
+                {request != undefined && request.from == user.uid && request.type != 1 ?
+                    <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
+                        deleteCallRequest(request.id)
+                    }}>
+                        Cancel Call
+                    </button> : ""
+                }
+                {request != undefined && request.from != user.uid && request.type != 1 ?
+                    <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
+                        const pc = createPC();
+
+                        const { remoteStream, localStream } = await webCamHandler(
+                            pc,
+                            webcamVideoRef,
+                            remoteVideoRef
+                        );
+                        remoteStreamRef.current = remoteStream;
+                        localStreamRef.current = localStream;
+                        unsubscribeRef.current = await answerHandler(pcRef.current, threadId)
+                        acceptCallRequest(request.id)
+
+                    }}>
+                        Accept Call
+                    </button> : ""
+                }
+                {request && request.type == 1 ?
+                    <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
+                        hangupHandler({ pcRef, localStreamRef, remoteStreamRef, webcamVideoRef, remoteVideoRef, unsubscribeRef, request })
+                        pcRef.current = null;
+                        deleteCallRequest(request.id)
+                    }}>
+                        Close Call
+                    </button> : ""
+                }
+
+                <label for="cameras" className='text-xl mr-5'>Choose a camera:</label>
+                <select id="cameras" className='border bg-transparent rounded text-xl p-1'>
+                    {cameras.map((camera) => {
+                        console.log(camera)
+                        return (
+                            <>
+
+                                <option value={camera.label} >{camera.label}</option>
+                            </>
+                        )
+                    })}
+                </select>
                 <button
                     onClick={async () => {
-                        if (true) {
-                            submitCallRequest()
-                            // remoteStreamRef.current = await webCamHandler(pcRef.current, threadId, webcamVideoRef, localStreamRef.current, options, mediaRecorder, remoteVideoRef)
-                            // answerHandler(pcRef.current, threadId)
-                        }
-                        else {
-                        }
+                        const cameras = await getCameras()
+                        setCameras(cameras)
                     }}
                     className="fixed right-5 bottom-5 h-20 w-20 bg-green-500 rounded font-bold text-black cursor-pointer"
                 >
                     test
                 </button>
-                <div className="w-full m-4">
-                    <span>
-                        <h1 id="subtitle">
-                            <span> Local Stream</span>
-                        </h1>
-                        <video
-                            className="webcamVideo"
-                            ref={webcamVideoRef}
-                            autoPlay
-                            muted
-                            playsInline
-                        ></video>
-                    </span>
-                    <span>
-                        <h1 id="subtitle">
-                            <span> Remote Stream</span>
-                        </h1>
-                        <video
-                            className="webcamVideo"
-                            ref={remoteVideoRef}
-                            autoPlay
-                            muted
-                            playsInline
-                        ></video>
-                    </span>
+                <div className="w-full m-4 relative">
+                    <video
+                        className="w-1/4 rounded-lg absolute z-10 top-4 left-4 border-black border"
+                        ref={webcamVideoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        hidden={request ? request.type == 1 ? false : request.from == user.uid ? false : true : true}
+                    ></video>
+
+                    <video
+                        className="webcamVideo absolute rounded-lg w-full"
+                        ref={remoteVideoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        hidden={request ? request.type == 1 ? false : true : true}
+                    ></video>
                 </div>
             </div >
 
