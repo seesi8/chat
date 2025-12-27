@@ -1,13 +1,14 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { acceptCallRequest, answerHandler, callHandler, createCallRequest, deleteCallRequest, getCameras, getThreadData, hangupHandler, webCamHandler } from '../../lib/functions';
+import { acceptCallRequest, answerHandler, callHandler, createCallRequest, deleteCallRequest, getCameras, getThreadData, handleDisconnect, hangupHandler, sendMessageWithLock, sendTypeWithLock, webCamHandler } from '../../lib/functions';
 import { PiPhoneTransferFill } from 'react-icons/pi';
 import { useRouter } from 'next/router';
 import { UserContext } from '../../lib/context';
 import { useCollection, useDocument } from 'react-firebase-hooks/firestore';
 import { collection, doc, orderBy, query, where } from "firebase/firestore"
 import { firestore } from '../../lib/firebase';
+import toast from 'react-hot-toast';
 
 export default function CallPage() {
     const localStreamRef = useRef(null);
@@ -24,6 +25,31 @@ export default function CallPage() {
     const [threadData, setThreadData] = useState(null);
     const [request, setRequest] = useState();
     const [cameras, setCameras] = useState([]);
+    const [selectedCamera, setSelectedCamera] = useState();
+    const prevRequestRef = useRef();
+    const [pcToken, setPcToken] = useState(0);
+    const [connState, setConnState] = useState();
+
+    const getRequest = () => {
+        return request;
+    }
+
+    const resetPeer = () => {
+        if (pcRef.current) pcRef.current.close();
+        if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
+        if (remoteStreamRef.current) remoteStreamRef.current.getTracks().forEach(t => t.stop());
+        pcRef.current = null;
+    };
+
+    useEffect(() => {
+        const pc = pcRef.current;
+        if (!pc) return;
+        const handler = () => setConnState(pc.connectionState);
+        pc.addEventListener('connectionstatechange', handler);
+        handler(); // set initial state
+        return () => pc.removeEventListener('connectionstatechange', handler);
+    }, [pcToken]);
+
 
     const callRequestsQuery = threadId
         ? query(
@@ -86,34 +112,31 @@ export default function CallPage() {
 
     const submitCallRequest = async () => {
         const _requestId = await createCallRequest(threadId, user, data)
-        console.log(_requestId)
         setRequestId(_requestId);
+        if (threadId && _requestId && user && data) {
+            await sendTypeWithLock(threadId, `${_requestId}`, user, data, 0x05)
+        }
+        return _requestId
     }
 
     const createPC = () => {
         const pc = new RTCPeerConnection(servers);
-
-        pc.ontrack = (event) => {
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = event.streams[0];
-            }
-        };
-
         pcRef.current = pc;
+        setPcToken(t => t + 1); // trigger effect to rebind listeners
         return pc;
     };
 
-
     useEffect(() => {
-        const pc = new RTCPeerConnection(servers);
-        pcRef.current = pc;
+        // const pc = new RTCPeerConnection(servers);
+
+        // pcRef.current = pc;
 
 
-        pc.ontrack = (event) => {
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = event.streams[0];
-            }
-        };
+        // pc.ontrack = (event) => {
+        //     if (remoteVideoRef.current) {
+        //         remoteVideoRef.current.srcObject = event.streams[0];
+        //     }
+        // };
 
         return () => {
 
@@ -133,22 +156,99 @@ export default function CallPage() {
     }, [requestId])
 
     useEffect(() => {
-        if (request == undefined) {
-            hangupHandler({ pcRef, localStreamRef, remoteStreamRef, webcamVideoRef, remoteVideoRef, unsubscribeRef, request })
-            console.log(remoteVideoRef.current.srcObject)
+        const prev = prevRequestRef.current;
+        const wasActive = prev && prev.type === 1;
+        const nowActive = request && request.type === 1;
+
+        if (wasActive && !nowActive && !loading) {
+            hangupHandler({ pcRef, localStreamRef, remoteStreamRef, webcamVideoRef, remoteVideoRef, unsubscribeRef, request });
             pcRef.current = null;
         }
-    }, [request])
 
+        prevRequestRef.current = request;
+    }, [request, loading]);
 
+    const cameraCreation = async () => {
+        const cameras = await getCameras()
+        setCameras(cameras)
+    }
 
     useEffect(() => {
-        pcRef.current = new RTCPeerConnection(servers);
+        if (cameras[0]) {
+            setSelectedCamera(cameras[0].deviceId)
+        }
+    }, [cameras])
+
+    const answerCallRequestHandler = async () => {
+        resetPeer();
+        const pc = createPC();
+
+        const { remoteStream, localStream } = await webCamHandler(
+            pc,
+            webcamVideoRef,
+            remoteVideoRef,
+            selectedCamera
+        );
+        remoteStreamRef.current = remoteStream;
+        localStreamRef.current = localStream;
+        unsubscribeRef.current = await answerHandler(pcRef.current, threadId, closeCallConnection, createCallHandler, answerCallRequestHandler, getRequest, submitCallRequest, user, data)
+    }
+
+    const closeCallConnection = () => {
+        hangupHandler({ pcRef, localStreamRef, remoteStreamRef, webcamVideoRef, remoteVideoRef, unsubscribeRef, request })
+        pcRef.current = null;
+    }
+
+    useEffect(() => {
+        cameraCreation()
+        // pcRef.current = new RTCPeerConnection(servers);
         return () => {
             hangupHandler({ pcRef, localStreamRef, remoteStreamRef, webcamVideoRef, remoteVideoRef, unsubscribeRef, request })
             pcRef.current = null;
         };
     }, []);
+
+    const createCallHandler = async () => {
+        console.log("CREATING")
+        resetPeer();
+        const pc = createPC();
+
+        const { remoteStream, localStream } = await webCamHandler(
+            pc,
+            webcamVideoRef,
+            remoteVideoRef,
+            selectedCamera
+        );
+
+        remoteStreamRef.current = remoteStream;
+        localStreamRef.current = localStream;
+        unsubscribeRef.current = await callHandler(pcRef.current, threadId, closeCallConnection, createCallHandler, answerCallRequestHandler, getRequest, submitCallRequest, user, data)
+    }
+
+    useEffect(() => {
+        console.log(connState)
+        if (connState !== 'connected' && connState !== 'new' && connState !== 'connecting' && request?.type === 1) {
+            console.log(connState)
+            handleDisconnect(closeCallConnection, answerCallRequestHandler, createCallHandler, getRequest, submitCallRequest, user, data)
+        }
+    }, [connState, request]);
+
+    useEffect(() => {
+        if (request?.type === 1 && requestId) {
+            // handleDisconnect(closeCallConnection, answerCallRequestHandler, createCallHandler, getRequest, submitCallRequest, user, data)
+        }
+    }, [requestId, request?.type]);
+
+    useEffect(() => {
+        if (remoteVideoRef.current.srcObject == null && request?.type == 1 && connState == 'connecting') {
+            toast("Call Disconnected. Attemping to Reconnect.", {
+                icon: '⚠️'
+            })
+            handleDisconnect(closeCallConnection, answerCallRequestHandler, createCallHandler, getRequest, submitCallRequest, user, data)
+        }
+    }, [remoteVideoRef.current, request])
+
+
     return (
         <>
             <div className="pt-14 text-white flex justify-center flex-wrap">
@@ -156,17 +256,7 @@ export default function CallPage() {
                 {request == undefined ?
                     <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
                         submitCallRequest()
-                        const pc = createPC();
-
-                        const { remoteStream, localStream } = await webCamHandler(
-                            pc,
-                            webcamVideoRef,
-                            remoteVideoRef
-                        );
-
-                        remoteStreamRef.current = remoteStream;
-                        localStreamRef.current = localStream;
-                        unsubscribeRef.current = await callHandler(pcRef.current, threadId)
+                        await createCallHandler()
                     }}>
                         Create Call
                     </button> : ""
@@ -180,16 +270,7 @@ export default function CallPage() {
                 }
                 {request != undefined && request.from != user.uid && request.type != 1 ?
                     <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
-                        const pc = createPC();
-
-                        const { remoteStream, localStream } = await webCamHandler(
-                            pc,
-                            webcamVideoRef,
-                            remoteVideoRef
-                        );
-                        remoteStreamRef.current = remoteStream;
-                        localStreamRef.current = localStream;
-                        unsubscribeRef.current = await answerHandler(pcRef.current, threadId)
+                        await answerCallRequestHandler()
                         acceptCallRequest(request.id)
 
                     }}>
@@ -198,8 +279,7 @@ export default function CallPage() {
                 }
                 {request && request.type == 1 ?
                     <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
-                        hangupHandler({ pcRef, localStreamRef, remoteStreamRef, webcamVideoRef, remoteVideoRef, unsubscribeRef, request })
-                        pcRef.current = null;
+                        closeCallConnection()
                         deleteCallRequest(request.id)
                     }}>
                         Close Call
@@ -207,21 +287,20 @@ export default function CallPage() {
                 }
 
                 <label for="cameras" className='text-xl mr-5'>Choose a camera:</label>
-                <select id="cameras" className='border bg-transparent rounded text-xl p-1'>
+                <select id="cameras" className='border bg-transparent rounded text-xl p-1' value={selectedCamera} onChange={(e) => setSelectedCamera(e.target.value)}>
                     {cameras.map((camera) => {
-                        console.log(camera)
                         return (
                             <>
 
-                                <option value={camera.label} >{camera.label}</option>
+                                <option key={camera.deviceId} value={camera.deviceId} >{camera.label}</option>
                             </>
                         )
                     })}
                 </select>
                 <button
                     onClick={async () => {
-                        const cameras = await getCameras()
-                        setCameras(cameras)
+                        console.log(remoteVideoRef.current.srcObject)
+                        // handleDisconnect(closeCallConnection, answerCallRequestHandler, createCallHandler, getRequest, submitCallRequest, user, data)
                     }}
                     className="fixed right-5 bottom-5 h-20 w-20 bg-green-500 rounded font-bold text-black cursor-pointer"
                 >
