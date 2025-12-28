@@ -14,7 +14,6 @@
     "e2e:report": "env $(grep -v '^#' .env | xargs) playwright show-report"
   },
   "dependencies": {
-    "@browserbasehq/stagehand": "^3.0.6",
     "@digitalbazaar/minimal-cipher": "^6.0.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
