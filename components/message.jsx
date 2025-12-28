@@ -5,34 +5,33 @@ import { FaFile } from "react-icons/fa";
 import { FaCloudDownloadAlt } from "react-icons/fa";
 import { CallMessage } from "./CallMessage";
 import { MessageHandler } from "../lib/MessageHandler";
+import { CallHandler } from "../lib/CallHandler";
 
-export function Message({ message, threadId }) {
-  const [fileUrls, setFileUrls] = useState([]);
-  const [files, setFiles] = useState([])
+export function Message({ message, messageHandler }) {
+  let fileUrls = [];
+  let files = [];
 
-  useEffect(() => {
-    if (message.type == MessageHandler.MESSAGETYPES.IMAGE) {
-      const urls = message.messages.map((file) => {
-        const blob = base64ToBlob(file);
-        return window.URL.createObjectURL(blob);
-      });
+  if (message.type == MessageHandler.MESSAGETYPES.IMAGE) {
+    const urls = message.messages.map((file) => {
+      const blob = base64ToBlob(file);
+      return window.URL.createObjectURL(blob);
+    });
 
-      setFileUrls(urls);
-    }
-    else if (message.type == MessageHandler.MESSAGETYPES.FILE) {
-      const blobs = message.messages.map((file) => {
-        const blob = base64ToBlob(file.content, { type: file.type });
-        file.blob = blob
-        file.url = window.URL.createObjectURL(blob);
-        return file
-      });
+    fileUrls = urls;
+  }
+  else if (message.type == MessageHandler.MESSAGETYPES.FILE) {
+    const blobs = message.messages.map((file) => {
+      const blob = base64ToBlob(file.content, { type: file.type });
+      file.blob = blob
+      file.url = window.URL.createObjectURL(blob);
+      return file
+    });
 
-      setFiles(blobs);
-    }
-  }, [message]);
+    files = blobs;
+  }
 
-  if (message.type == 0x05) {
-    return <CallMessage message={message} threadId={threadId}/>;
+  if (CallHandler.isCallType(message.type)) {
+    return <CallMessage message={message} messageHandler={messageHandler} />;
   }
   return (
     <div className="ml-6 mb-4 text-white flex items-start relative">
@@ -61,7 +60,7 @@ export function Message({ message, threadId }) {
               </h3>
             ))}
 
-          {message.type ===MessageHandler.MESSAGETYPES.IMAGE &&
+          {message.type === MessageHandler.MESSAGETYPES.IMAGE &&
             fileUrls.map((url, i) => {
               return (
                 <div

@@ -22,14 +22,12 @@ export default function CallPage() {
     const [selectedCamera, setSelectedCamera] = useState();
     const [callHandler, setCallHandler] = useState()
     const [messages, setMessages] = useState();
+
     const [messagesValue, messagesLoading, messagesError] = useCollection(
         query(
             collection(firestore, "threads", `${threadId}`, "messages"),
             orderBy("timeSent")
-        ),
-        {
-            snapshotListenOptions: { includeMetadataChanges: true },
-        }
+        )
     );
     const [callState, setCallState] = useState(CallHandler.CALLSTATES.NO_STATE)
 
@@ -64,13 +62,22 @@ export default function CallPage() {
 
     useEffect(() => {
         if (user && data && threadId) {
-            setCallHandler(new CallHandler(user, data, threadId))
+            setCallHandler(new CallHandler(user, data, threadId, onSteamChanges))
         }
     }, [user, data, threadId])
 
+    const onSteamChanges = (localStream, remoteStream) => {
+        if (webcamVideoRef.current) {
+            webcamVideoRef.current.srcObject = localStream;
+        }
+        if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = remoteStream;
+        }
+    }
+
     return (
         <>
-            <div className="pt-14 text-white flex justify-center flex-wrap">
+            <div className="pt-14 text-white flex justify-center flex-wrap max-h-screen overflow-hidden">
                 <h1 className="font-bold text-3xl w-full text-center">Create Call With {threadData && threadData.groupName}</h1>
                 {callState == CallHandler.CALLSTATES.NO_STATE ?
                     <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
@@ -96,8 +103,7 @@ export default function CallPage() {
                 }
                 {callState == CallHandler.CALLSTATES.CALL_ACTIVE ?
                     <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
-                        // closeCallConnection()
-                        // deleteCallRequest(request.id)
+                        callHandler.closeCall()
                     }}>
                         Close Call
                     </button> : ""
@@ -123,21 +129,19 @@ export default function CallPage() {
                 >
                     test
                 </button>
-                <div className="w-full m-4 relative">
+                <div className="w-full m-4 relative h-fit max-h-[calc(100vh-15rem)] flex justify-start min-h-[20vh]">
                     <video
-                        className="w-1/4 rounded-lg absolute z-10 top-4 left-4 border-black border"
+                        className="w-1/6 rounded-lg absolute z-10 top-4 left-4 border-black border"
                         ref={webcamVideoRef}
                         autoPlay
-                        muted
                         playsInline
                         hidden={callState != CallHandler.CALLSTATES.CALL_ACTIVE}
                     ></video>
 
                     <video
-                        className="webcamVideo absolute rounded-lg w-full"
+                        className="rounded-lg h-[calc(100vh-15rem)] w-auto object-contain inline-block self-start"
                         ref={remoteVideoRef}
                         autoPlay
-                        muted
                         playsInline
                         hidden={callState != CallHandler.CALLSTATES.CALL_ACTIVE}
                     ></video>

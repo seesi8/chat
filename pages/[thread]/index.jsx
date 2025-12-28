@@ -137,7 +137,7 @@ export default function Thread({ threadId }) {
       <div className="">
         {messages &&
           messages.map((el) => {
-            return <Message message={el} key={el.key} threadId={threadId} />;
+            return <Message message={el} key={el.key} messageHandler={messageHandler} />;
           })}
       </div>
       <div ref={bottomOfMessages} />
