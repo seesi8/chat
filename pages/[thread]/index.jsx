@@ -10,24 +10,14 @@ import { useCollection } from "react-firebase-hooks/firestore";
 import { IoIosSettings } from "react-icons/io";
 import { PiPhoneTransferFill } from "react-icons/pi";
 import {
-  answerHandler,
-  callHandler,
   decryptMessages,
-  getNextKey,
-  handleCallConnection,
   routeUser,
-  sendFileWithLock,
-  sendMessageWithLock,
-  submitMessage,
-  testThread,
-  uploadImage,
-  uploadImages,
-  webCamHandler,
 } from "../../lib/functions";
 import { Message } from "../../components/message";
 import Image from "next/image";
 import { b64 } from "../../lib/e2ee/e2ee";
 import { LinearProgress } from "@mui/material";
+import { MessageHandler } from "../../lib/MessageHandler";
 
 export default function Thread({ threadId }) {
   const { user, data } = useContext(UserContext);
@@ -40,6 +30,7 @@ export default function Thread({ threadId }) {
   const [images, setImages] = useState([]);
   const [files, setFiles] = useState([]);
   const [otherFiles, setOtherFiles] = useState([]);
+  const [messageHandler, setMessageHandler] = useState();
 
   const [messagesValue, messagesLoading, messagesError] = useCollection(
     query(
@@ -52,21 +43,26 @@ export default function Thread({ threadId }) {
   );
   const router = useRouter();
 
+
   useEffect(() => {
     bottomOfMessages.current?.scrollIntoView({ behavior: "smooth" });
   });
 
   useEffect(() => {
     routeUser(auth, user, threadId, setValid, setOwner);
+    if (user && data) {
+      console.log("HERE")
+      setMessageHandler(new MessageHandler(user, data, threadId))
+    }
   }, [user, data]);
 
   useEffect(() => {
-    user &&
-      data &&
-      decryptMessages(messagesValue, threadId, user, data).then((msgs) => {
+    console.log(messageHandler)
+    messageHandler &&
+      messageHandler.decryptMessages(messagesValue).then((msgs) => {
         setMessages(msgs);
       });
-  }, [messagesValue, user, data]);
+  }, [messagesValue, messageHandler]);
 
   const fileInputRef = useRef();
 
@@ -117,11 +113,12 @@ export default function Thread({ threadId }) {
       return;
     }
     setLoading(true)
-    submitMessage(files, message, threadId, user, data, setLoading)
+    messageHandler.submitMessage(files, message, setLoading)
     setImages([]);
     setFiles([]);
     setMessage("");
     setOtherFiles([])
+    fileInputRef.current.value = "";
   };
 
 

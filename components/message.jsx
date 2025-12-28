@@ -4,13 +4,14 @@ import { base64ToBlob } from "../lib/e2ee/e2ee";
 import { FaFile } from "react-icons/fa";
 import { FaCloudDownloadAlt } from "react-icons/fa";
 import { CallMessage } from "./CallMessage";
+import { MessageHandler } from "../lib/MessageHandler";
 
 export function Message({ message, threadId }) {
   const [fileUrls, setFileUrls] = useState([]);
   const [files, setFiles] = useState([])
 
   useEffect(() => {
-    if (message.type == 0x03) {
+    if (message.type == MessageHandler.MESSAGETYPES.IMAGE) {
       const urls = message.messages.map((file) => {
         const blob = base64ToBlob(file);
         return window.URL.createObjectURL(blob);
@@ -18,7 +19,7 @@ export function Message({ message, threadId }) {
 
       setFileUrls(urls);
     }
-    else if (message.type == 0x04) {
+    else if (message.type == MessageHandler.MESSAGETYPES.FILE) {
       const blobs = message.messages.map((file) => {
         const blob = base64ToBlob(file.content, { type: file.type });
         file.blob = blob
@@ -35,7 +36,7 @@ export function Message({ message, threadId }) {
   }
   return (
     <div className="ml-6 mb-4 text-white flex items-start relative">
-      {(message.type == 0x01 || message.type == 0x02 || message.type == 0x03 || message.type == 0x04) ? <>
+      {(MessageHandler.isVisableType(message.type)) ? <>
         <div className="rounded-full overflow-hidden bg-white w-10 h-10 flex justify-center flex-shrink-0 items-center relative mt-1">
           <Image
             layout="fill"
@@ -53,14 +54,14 @@ export function Message({ message, threadId }) {
             </p>
           </div>
 
-          {message.type === 0x01 &&
+          {MessageHandler.isTextType(message.type) &&
             message.messages.map((msg, i) => (
               <h3 key={i} className="mr-12">
                 {msg}
               </h3>
             ))}
 
-          {message.type === 0x03 &&
+          {message.type ===MessageHandler.MESSAGETYPES.IMAGE &&
             fileUrls.map((url, i) => {
               return (
                 <div
@@ -76,7 +77,7 @@ export function Message({ message, threadId }) {
               )
             })}
 
-          {message.type === 0x04 &&
+          {message.type === MessageHandler.MESSAGETYPES.FILE &&
             files.map((file, i) => {
               return (
                 <div

@@ -10,6 +10,7 @@ import {
   submitMember,
 } from "../lib/functions";
 import { MemberSuggestion } from "./MemberSuggestion";
+import { MessageHandler } from "../lib/MessageHandler";
 
 export default function CreateChatPopup({ setPopup }) {
   const { user, data } = useContext(UserContext);
@@ -21,6 +22,7 @@ export default function CreateChatPopup({ setPopup }) {
   const [friends, setFriends] = useState([]);
   const [suggestions, setSuggestion] = useState([]);
   const [dm, setDm] = useState(true);
+  const [messageHandler, setMessageHandler] = useState();
 
   useEffect(() => {
     getFriends(user, data, friends).then((localFriends) => {
@@ -35,13 +37,18 @@ export default function CreateChatPopup({ setPopup }) {
     );
   }, [currentInput]);
 
+  useEffect(() => {
+    if (user && data) {
+      setMessageHandler(new MessageHandler(user, data))
+    }
+  }, [user, data])
+
   return (
     <Popup setPopup={setPopup} title={"Create Message"}>
       <div className="flex w-full justify-center p-4 pt-0">
         <button
-          className={`border ${
-            dm ? "bg-neutral-500/15" : ""
-          } p-4 w-1/2 rounded cursor-pointer mr-4 min-w-fit`}
+          className={`border ${dm ? "bg-neutral-500/15" : ""
+            } p-4 w-1/2 rounded cursor-pointer mr-4 min-w-fit`}
           onClick={(e) => {
             setDm(true);
           }}
@@ -49,9 +56,8 @@ export default function CreateChatPopup({ setPopup }) {
           Direct Message
         </button>
         <button
-          className={`cursor-pointer  ${
-            !dm ? "bg-neutral-500/15" : ""
-          } p-4 w-1/2 border rounded min-w-fit`}
+          className={`cursor-pointer  ${!dm ? "bg-neutral-500/15" : ""
+            } p-4 w-1/2 border rounded min-w-fit`}
           onClick={(e) => {
             setDm(false);
           }}
@@ -108,20 +114,20 @@ export default function CreateChatPopup({ setPopup }) {
       <button
         onClick={() => {
           if (!dm) {
-            createGroup(user, data, members, groupName).then((success) => {
+            messageHandler.createGroup(members, groupName).then((success) => {
               if (success) {
                 setPopup(false);
               }
             });
           } else {
-            createDRDM(user, data, members, groupName).then((success) => {
+            messageHandler.createDRDM(members, groupName).then((success) => {
               if (success) {
                 setPopup(false);
               }
             });
           }
         }}
-        className="border border-neutral-400 px-6 rounded text-white font-bold h-12 w-full"     
+        className="border border-neutral-400 px-6 rounded text-white font-bold h-12 w-full"
       >
         <h1>Create</h1>
       </button>
