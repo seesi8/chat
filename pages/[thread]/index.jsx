@@ -1,7 +1,7 @@
 import { FaFile } from "react-icons/fa";
 import { IoIosCloseCircle } from "react-icons/io";
 import { GoPaperclip } from "react-icons/go";
-import { query, getDocs, collection, orderBy } from "firebase/firestore";
+import { query, getDocs, collection, orderBy, limitToLast } from "firebase/firestore";
 import { createRef, useContext, useEffect, useRef, useState } from "react";
 import { UserContext } from "../../lib/context";
 import { auth, firestore } from "../../lib/firebase";
@@ -35,7 +35,8 @@ export default function Thread({ threadId }) {
   const [messagesValue, messagesLoading, messagesError] = useCollection(
     query(
       collection(firestore, "threads", threadId, "messages"),
-      orderBy("timeSent")
+      orderBy("timeSent"),
+      limitToLast(50)
     ),
     {
       snapshotListenOptions: { includeMetadataChanges: true },
@@ -51,15 +52,15 @@ export default function Thread({ threadId }) {
   useEffect(() => {
     routeUser(auth, user, threadId, setValid, setOwner);
     if (user && data) {
-      console.log("HERE")
+      
       setMessageHandler(new MessageHandler(user, data, threadId))
     }
   }, [user, data]);
 
   useEffect(() => {
-    console.log(messageHandler)
     messageHandler &&
       messageHandler.decryptMessages(messagesValue).then((msgs) => {
+        
         setMessages(msgs);
       });
   }, [messagesValue, messageHandler]);
@@ -95,8 +96,6 @@ export default function Thread({ threadId }) {
 
   const removeImage = (image) => {
     URL.revokeObjectURL(image.url);
-    console.log(images, image)
-    console.log(images.filter(i => i.file != image.file))
     setImages(prev => prev.filter(i => i.file !== image.file));
     setFiles(prev => prev.filter(f => f !== image.file));
   };
@@ -187,7 +186,7 @@ export default function Thread({ threadId }) {
               <div
                 className={`border bg-transparent border-neutral-500 rounded h-12 w-full text-white flex`}
               >
-                <button type="button" className="flex w-12 h-12 flex content-center justify-center flex-wrap text-xl" onClick={(e) => { e.preventDefault(); console.log("clicked"); fileInputRef.current.click() }}>
+                <button type="button" className="flex w-12 h-12 flex content-center justify-center flex-wrap text-xl" onClick={(e) => { e.preventDefault();  fileInputRef.current.click() }}>
                   <GoPaperclip />
                 </button>
                 <input onChange={handleChange} multiple={true} ref={fileInputRef} type='file' hidden

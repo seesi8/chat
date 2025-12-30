@@ -24,7 +24,7 @@ function MyApp({ Component, pageProps }) {
     if (userData.data.privateKey) {
       return
     }
-    console.log("print once")
+    
     setPopup(true)
   }, [userData])
 

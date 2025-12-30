@@ -24,7 +24,7 @@ export default function NoKey({ setPopup, makeBackup }) {
         <input
           placeholder="Passphrase"
           value={currentInput}
-          className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-full text-white px-4 text-xl my-4"
+          className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-full text-white px-4 text-xl my-4 focus:outline-none focus:ring-0"
           onChange={(e) => setCurrentInput(e.target.value)}
           type="text"
           required={true}

@@ -20,7 +20,7 @@ export default function Create({}) {
 
     createUser(auth, email, password, displayName, storageUrl).then(
       (success) => {
-        console.log("success", success)
+        
         if (success) {
           router.push("/");
         }
@@ -40,20 +40,20 @@ export default function Create({}) {
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="border block bg-transparent border-neutral-500 rounded mr-6 h-12 w-2/3 text-white px-4 my-2"
+        className="border block bg-transparent border-neutral-500 rounded mr-6 h-12 w-2/3 text-white px-4 my-2 focus:outline-none focus:ring-0"
       />
       <input
         type="password"
         placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        className="border block bg-transparent border-neutral-500 rounded mr-6 h-12 w-2/3 text-white px-4 my-2"
+        className="border block bg-transparent border-neutral-500 rounded mr-6 h-12 w-2/3 text-white px-4 my-2 focus:outline-none focus:ring-0"
       />
       <input
         placeholder="Display Name"
         value={displayName}
         onChange={(e) => setDisplayName(e.target.value)}
-        className="border block bg-transparent border-neutral-500 rounded mr-6 h-12 w-2/3 text-white px-4 my-2"
+        className="border block bg-transparent border-neutral-500 rounded mr-6 h-12 w-2/3 text-white px-4 my-2 focus:outline-none focus:ring-0"
       />
       <label className="text-2xl w-full text-center block mb-4">
         Profile Picture

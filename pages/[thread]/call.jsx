@@ -6,10 +6,11 @@ import { PiPhoneTransferFill } from 'react-icons/pi';
 import { useRouter } from 'next/router';
 import { UserContext } from '../../lib/context';
 import { useCollection, useDocument } from 'react-firebase-hooks/firestore';
-import { collection, doc, orderBy, query, where } from "firebase/firestore"
+import { collection, doc, limitToLast, orderBy, query, where } from "firebase/firestore"
 import { firestore } from '../../lib/firebase';
 import toast from 'react-hot-toast';
 import { CallHandler } from '../../lib/CallHandler';
+import Spinner from '../../components/Spinner';
 
 export default function CallPage() {
     const { user, data } = useContext(UserContext)
@@ -22,14 +23,18 @@ export default function CallPage() {
     const [selectedCamera, setSelectedCamera] = useState();
     const [callHandler, setCallHandler] = useState()
     const [messages, setMessages] = useState();
+    const [localShow, setLocalShow] = useState(false);
+    const [remoteShow, setRemoteShow] = useState(false);
 
     const [messagesValue, messagesLoading, messagesError] = useCollection(
         query(
             collection(firestore, "threads", `${threadId}`, "messages"),
-            orderBy("timeSent")
+            orderBy("timeSent"),
+            limitToLast(30)
         )
     );
     const [callState, setCallState] = useState(CallHandler.CALLSTATES.NO_STATE)
+    const [localCallState, setLocalCallState] = useState(CallHandler.CALLSTATES.NO_STATE)
 
     useEffect(() => {
         getThreadData(threadId).then((data) => {
@@ -42,6 +47,7 @@ export default function CallPage() {
             callHandler.decryptMessages(messagesValue).then(async (msgs) => {
                 setMessages(msgs);
                 setCallState(callHandler.getCallState())
+                setLocalCallState(callHandler.getCallState())
             });
     }, [messagesValue, callHandler]);
 
@@ -68,9 +74,11 @@ export default function CallPage() {
 
     const onSteamChanges = (localStream, remoteStream) => {
         if (webcamVideoRef.current) {
+            setLocalShow(true)
             webcamVideoRef.current.srcObject = localStream;
         }
         if (remoteVideoRef.current) {
+            setRemoteShow(true)
             remoteVideoRef.current.srcObject = remoteStream;
         }
     }
@@ -82,6 +90,7 @@ export default function CallPage() {
                 {callState == CallHandler.CALLSTATES.NO_STATE ?
                     <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
                         callHandler.sendCallRequest()
+                        setLocalCallState(CallHandler.CALLSTATES.CALL_REQUESTED)
                     }}>
                         Create Call
                     </button> : ""
@@ -89,13 +98,15 @@ export default function CallPage() {
                 {callState == CallHandler.CALLSTATES.CALL_REQUESTED ?
                     <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
                         callHandler.cancelCallRequest()
+                        setLocalCallState(CallHandler.CALLSTATES.NO_STATE)
                     }}>
                         Cancel Call Request
                     </button> : ""
                 }
                 {callState == CallHandler.CALLSTATES.INCOMING_CALL ?
                     <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
-                        console.log("clocked")
+                        
+                        setLocalCallState(CallHandler.CALLSTATES.CALL_ACTIVE)
                         callHandler.acceptCallRequest()
                     }}>
                         Accept Call
@@ -103,12 +114,12 @@ export default function CallPage() {
                 }
                 {callState == CallHandler.CALLSTATES.CALL_ACTIVE ?
                     <button type="button" className='text-xl w-full text-center justify-center flex border rounded m-4 p-1' onClick={async (e) => {
+                        setLocalCallState(CallHandler.CALLSTATES.NO_STATE)
                         callHandler.closeCall()
                     }}>
                         Close Call
                     </button> : ""
                 }
-
                 <label for="cameras" className='text-xl mr-5'>Choose a camera:</label>
                 <select id="cameras" className='border bg-transparent rounded text-xl p-1' value={selectedCamera} onChange={(e) => setSelectedCamera(e.target.value)}>
                     {cameras.map((camera) => {
@@ -122,7 +133,7 @@ export default function CallPage() {
                 </select>
                 <button
                     onClick={async () => {
-                        console.log(remoteVideoRef.current.srcObject)
+                        
                         // handleDisconnect(closeCallConnection, answerCallRequestHandler, createCallHandler, getRequest, submitCallRequest, user, data)
                     }}
                     className="fixed right-5 bottom-5 h-20 w-20 bg-green-500 rounded font-bold text-black cursor-pointer"
@@ -130,16 +141,21 @@ export default function CallPage() {
                     test
                 </button>
                 <div className="w-full m-4 relative h-fit max-h-[calc(100vh-15rem)] flex justify-start min-h-[20vh]">
+                    {callState == CallHandler.CALLSTATES.CALL_ACTIVE &&
+                        !localShow ?
+                        <div className="w-1/6 rounded-lg absolute z-10 top-4 left-4 border-black border aspect-video z-20"><Spinner /></div> : <></>}
                     <video
-                        className="w-1/6 rounded-lg absolute z-10 top-4 left-4 border-black border"
+                        className="w-1/6 rounded-lg absolute z-10 top-4 left-4 border-black border aspect-video"
                         ref={webcamVideoRef}
                         autoPlay
                         playsInline
                         hidden={callState != CallHandler.CALLSTATES.CALL_ACTIVE}
                     ></video>
-
+                    {callState == CallHandler.CALLSTATES.CALL_ACTIVE &&
+                        !remoteShow ?
+                        <div className="rounded-lg h-[calc(100vh-15rem)] w-auto object-contain self-start aspect-video border-black border absolute left-0 top-0 z-20"><Spinner /></div> : <></>}
                     <video
-                        className="rounded-lg h-[calc(100vh-15rem)] w-auto object-contain inline-block self-start"
+                        className="rounded-lg h-[calc(100vh-15rem)] w-auto object-contain self-start aspect-video border-black border"
                         ref={remoteVideoRef}
                         autoPlay
                         playsInline

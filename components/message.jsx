@@ -6,6 +6,7 @@ import { FaCloudDownloadAlt } from "react-icons/fa";
 import { CallMessage } from "./CallMessage";
 import { MessageHandler } from "../lib/MessageHandler";
 import { CallHandler } from "../lib/CallHandler";
+import ProfileImage from "./ProfileImage";
 
 export function Message({ message, messageHandler }) {
   let fileUrls = [];
@@ -36,14 +37,7 @@ export function Message({ message, messageHandler }) {
   return (
     <div className="ml-6 mb-4 text-white flex items-start relative">
       {(MessageHandler.isVisableType(message.type)) ? <>
-        <div className="rounded-full overflow-hidden bg-white w-10 h-10 flex justify-center flex-shrink-0 items-center relative mt-1">
-          <Image
-            layout="fill"
-            src={message.sentBy.profileIMG}
-            alt=""
-            className="object-contain"
-          />
-        </div>
+        <ProfileImage src={message.sentBy.profileIMG} width={10} height={10} />
 
         <div className="ml-2">
           <div className="flex">

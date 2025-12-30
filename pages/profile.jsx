@@ -7,6 +7,7 @@ import { Person } from "../components/person";
 import Backup from "../components/backup";
 import toast from "react-hot-toast";
 import { getCurrentMembers, storeAndDownloadBackup } from "../lib/functions";
+import ProfileImage from "../components/ProfileImage";
 
 export default function Profile({}) {
   const { user, data } = useContext(UserContext);
@@ -37,7 +38,7 @@ export default function Profile({}) {
     if (already) {
       setAlready(false);
     }
-    console.log(success);
+    
     if (success) {
       setPopup(false);
       toast.success("Backup Created");
@@ -59,15 +60,7 @@ export default function Profile({}) {
           ""
         )}
         <div className="flex justify-center gap-4 items-center">
-          <div className="rounded-full overflow-hidden bg-white w-24 h-24 flex justify-center flex-shrink-0 items-center relative">
-            <Image
-              alt="profileImg"
-              src={data ? data.profileIMG : "/close.png"}
-              layout="fill"
-              objectFit="contain"
-              sd
-            />
-          </div>
+          <ProfileImage src={data ? data.profileIMG : "/close.png"} width={24} height={24} />
           <div className="">
             <p className="text-4xl font-bold">{data && data.displayName}</p>
             <p className="text-l text-center text-neutral-400">@{data && data.username}</p>

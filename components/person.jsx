@@ -8,28 +8,20 @@ import {
   removeRequest,
   submitUsername,
 } from "../lib/functions";
+import ProfileImage from "./ProfileImage";
 
 export function Person({ item }) {
-  console.log(item);
+  
   const { user, data } = useContext(UserContext);
   const id = item.uid;
   const type = useRequests(user, id, data);
-    console.log(item.username, type)
+    
   return (
     <div className="flex mb-4" key={item.username}>
       <div
         className="border bg-transparent border-neutral-500 rounded mr-6 w-full min-w-fit text-white px-4 flex p-2 items-center"
       >
-        <div className="rounded-full overflow-hidden bg-white w-10 h-10 flex justify-center flex-shrink-0 items-center relative">
-          <Image
-            alt="profileImg"
-            src={item.profileIMG}
-            layout="fill"
-            objectFit="contain"
-            sd
-          />
-          ` `
-        </div>
+        <ProfileImage src={item.profileIMG} />
         <h2 className="ml-4 text-2xl">{`@${item.username}`}</h2>
       </div>
       {type == "disabled" && (

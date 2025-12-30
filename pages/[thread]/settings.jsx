@@ -61,6 +61,7 @@ export default function SettingsPage() {
       setMembersData(members);
     });
 
+
     if (threadData && threadData.leader !== user.uid) {
       router.push(`/${thread}`);
     }
@@ -82,7 +83,7 @@ export default function SettingsPage() {
             value={groupName}
             onChange={(e) => setGroupName(e.target.value)}
             type="text"
-            className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-1/2 text-white px-4"
+            className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-1/2 text-white px-4 focus:outline-none focus:ring-0"
           />
           <button
             className="border border-neutral-400 px-12 rounded text-white font-bold h-12"
@@ -115,7 +116,7 @@ export default function SettingsPage() {
               placeholder="Member Username"
               value={currentInput}
               onChange={(e) => setCurrentInput(e.target.value)}
-              className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-1/2 text-white px-4"
+              className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-1/2 text-white px-4 focus:outline-none focus:ring-0"
               type="text"
             />
           </div>

@@ -17,14 +17,14 @@ export default function Login({}) {
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-2/3 text-white px-4 my-2"
+        className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-2/3 text-white px-4 my-2 focus:outline-none focus:ring-0"
       />
       <input
         type="password"
         placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-2/3 text-white px-4 my-2"
+        className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-2/3 text-white px-4 my-2 focus:outline-none focus:ring-0"
       />
       <button onClick={(e) => login(e, email, password)} className="border border-neutral-400 px-6 rounded text-white font-bold h-12 w-1/2 my-2" type="submit">Submit</button>
       <Link href="/create">

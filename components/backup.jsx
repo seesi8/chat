@@ -11,7 +11,7 @@ export default function Backup({ setPopup, makeBackup, already }) {
           <input
             placeholder="Passphrase"
             value={currentInput}
-            className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-full text-white px-4 text-xl mb-4"
+            className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-full text-white px-4 text-xl mb-4 focus:outline-none focus:ring-0"
             onChange={(e) => setCurrentInput(e.target.value)}
             type="text"
             required={true}

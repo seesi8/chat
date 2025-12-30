@@ -71,7 +71,7 @@ export default function CreateChatPopup({ setPopup }) {
           required
           value={groupName}
           onChange={(e) => setGroupName(e.target.value)}
-          className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-full text-white px-4 text-xl mb-4"
+          className="border bg-transparent border-neutral-500 rounded mr-6 h-12 w-full text-white px-4 text-xl mb-4 focus:outline-none focus:ring-0"
           type="text"
         />
         <p className="text-white text-xl mb-4">Add Members:</p>
@@ -93,7 +93,7 @@ export default function CreateChatPopup({ setPopup }) {
             placeholder="Member Username"
             value={currentInput}
             onChange={(e) => setCurrentInput(e.target.value)}
-            className="bg-transparent border-none outline-none w-full"
+            className="bg-transparent border-none outline-none w-full focus:outline-none focus:ring-0"
             type="text"
           />
         </div>
