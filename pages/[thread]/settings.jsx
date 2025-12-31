@@ -62,7 +62,7 @@ export default function SettingsPage() {
     });
 
 
-    if (threadData && threadData.leader !== user.uid) {
+    if (threadData && (threadData.leader !== user.uid && !threadData.dm)) {
       router.push(`/${thread}`);
     }
   }, [threadData]);

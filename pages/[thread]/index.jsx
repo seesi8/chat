@@ -12,6 +12,7 @@ import { PiPhoneTransferFill } from "react-icons/pi";
 import {
   decryptMessages,
   routeUser,
+  test,
 } from "../../lib/functions";
 import { Message } from "../../components/message";
 import Image from "next/image";
@@ -36,7 +37,7 @@ export default function Thread({ threadId }) {
     query(
       collection(firestore, "threads", threadId, "messages"),
       orderBy("timeSent"),
-      limitToLast(50)
+      limitToLast(60)
     ),
     {
       snapshotListenOptions: { includeMetadataChanges: true },
@@ -207,6 +208,7 @@ export default function Thread({ threadId }) {
       </div>
       <button
         onClick={async () => {
+          test(user, data)
         }}
         className="fixed right-5 bottom-5 h-20 w-20 bg-green-500 rounded font-bold text-black cursor-pointer"
       >

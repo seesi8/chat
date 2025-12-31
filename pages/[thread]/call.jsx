@@ -155,7 +155,7 @@ export default function CallPage() {
                         !remoteShow ?
                         <div className="rounded-lg h-[calc(100vh-15rem)] w-auto object-contain self-start aspect-video border-black border absolute left-0 top-0 z-20"><Spinner /></div> : <></>}
                     <video
-                        className="rounded-lg h-[calc(100vh-15rem)] w-auto object-contain self-start aspect-video border-black border"
+                        className="rounded-lg h-[calc(100vh-15rem)] w-auto object-contain self-start aspect-video border-black border bg-black"
                         ref={remoteVideoRef}
                         autoPlay
                         playsInline

@@ -33,7 +33,7 @@ export default function AddFriend({ setPopup }) {
 
   return (
     <Popup title={"Add Friend"} setPopup={setPopup}>
-      <form onSubmit={(e) => submitUsername(e, suggestions[0].id, user, data)} className="max-h-[85%] overflow-y-scroll overflow-x-hidden">
+      <form onSubmit={(e) => { e.preventDefault(); submitUsername(suggestions[0].id, user, data) }} className="max-h-[85%] overflow-y-scroll overflow-x-hidden">
         <div className="">
           <input
             placeholder="Member Username"
