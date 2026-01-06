@@ -206,14 +206,14 @@ export default function Thread({ threadId }) {
         </form>
 
       </div>
-      <button
+      {/* <button
         onClick={async () => {
           test(user, data)
         }}
         className="fixed right-5 bottom-5 h-20 w-20 bg-green-500 rounded font-bold text-black cursor-pointer"
       >
         test
-      </button>
+      </button> */}
     </main>
   );
 }
