@@ -7,6 +7,7 @@ import { CallMessage } from "./CallMessage";
 import { MessageHandler } from "../lib/MessageHandler";
 import { CallHandler } from "../lib/CallHandler";
 import ProfileImage from "./ProfileImage";
+import { InviteMessage } from "./InviteMessage";
 
 export function Message({ message, messageHandler }) {
   let fileUrls = [];
@@ -30,10 +31,12 @@ export function Message({ message, messageHandler }) {
 
     files = blobs;
   }
-
   if (CallHandler.isCallType(message.type)) {
     return <CallMessage message={message} messageHandler={messageHandler} />;
   }
+  // if(message.type == MessageHandler.MESSAGETYPES.GROUP_INVITE){
+  //   return <InviteMessage message={message} messageHandler={messageHandler}/>
+  // }
   return (
     <div className="ml-6 mb-4 text-white flex items-start relative">
       {(MessageHandler.isVisableType(message.type)) ? <>

@@ -32,8 +32,8 @@ export function Person({ item }) {
   }
 
   const acceptFriendSubmit = (id) => {
-    getUserData(id).then((data) => {
-      setSelectedUserData(data)
+    getUserData(id).then((_data) => {
+      setSelectedUserData(_data)
       acceptFriend(item.uid, user, data)
       setAccepting(true)
       setPopup(true)

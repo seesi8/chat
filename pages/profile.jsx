@@ -63,7 +63,7 @@ export default function Profile({}) {
           <ProfileImage src={data ? data.profileIMG : "/close.png"} width={24} height={24} />
           <div className="">
             <p className="text-4xl font-bold">{data && data.displayName}</p>
-            <p className="text-l text-center text-neutral-400">@{data && data.username}</p>
+            <p className="text-l text-center text-neutral-400">User Id: {user.uid}</p>
           </div>
         </div>
         <h1 className="text-4xl font-bold mb-4">Friends</h1>

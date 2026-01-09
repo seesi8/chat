@@ -11,6 +11,7 @@ import {
 } from "../lib/functions";
 import { MemberSuggestion } from "./MemberSuggestion";
 import { MessageHandler } from "../lib/MessageHandler";
+import { GroupMessageHandler } from "../lib/GroupMessageHandler.ts";
 
 export default function CreateChatPopup({ setPopup }) {
   const { user, data } = useContext(UserContext);
@@ -23,6 +24,7 @@ export default function CreateChatPopup({ setPopup }) {
   const [suggestions, setSuggestion] = useState([]);
   const [dm, setDm] = useState(true);
   const [messageHandler, setMessageHandler] = useState();
+  const [groupHandler, setGroupHandler] = useState();
 
   useEffect(() => {
     getFriends(user, data, friends).then((localFriends) => {
@@ -40,6 +42,9 @@ export default function CreateChatPopup({ setPopup }) {
   useEffect(() => {
     if (user && data) {
       setMessageHandler(new MessageHandler(user, data))
+      GroupMessageHandler.create(user, data).then((value) => {
+        setGroupHandler(value)
+      })
     }
   }, [user, data])
 
@@ -114,11 +119,11 @@ export default function CreateChatPopup({ setPopup }) {
       <button
         onClick={() => {
           if (!dm) {
-            messageHandler.createGroup(members, groupName).then((success) => {
+            groupHandler.createThread(groupName).then((success) => {
               if (success) {
                 setPopup(false);
               }
-            });
+            })
           } else {
             messageHandler.createDRDM(members, groupName).then((success) => {
               if (success) {

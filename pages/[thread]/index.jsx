@@ -1,7 +1,7 @@
 import { FaFile } from "react-icons/fa";
 import { IoIosCloseCircle } from "react-icons/io";
 import { GoPaperclip } from "react-icons/go";
-import { query, getDocs, collection, orderBy, limitToLast } from "firebase/firestore";
+import { query, getDocs, collection, orderBy, limitToLast, getDoc, doc } from "firebase/firestore";
 import { createRef, useContext, useEffect, useRef, useState } from "react";
 import { UserContext } from "../../lib/context";
 import { auth, firestore } from "../../lib/firebase";
@@ -19,8 +19,11 @@ import Image from "next/image";
 import { b64 } from "../../lib/e2ee/e2ee";
 import { LinearProgress } from "@mui/material";
 import { MessageHandler } from "../../lib/MessageHandler";
+import { GroupMessageHandler } from "../../lib/GroupMessageHandler.ts";
+import { RiUserAddFill } from "react-icons/ri";
+import AddMember from "../../components/addMember";
 
-export default function Thread({ threadId }) {
+export default function Thread({ threadId, thread }) {
   const { user, data } = useContext(UserContext);
   const bottomOfMessages = createRef();
   const [messages, setMessages] = useState([]);
@@ -32,6 +35,7 @@ export default function Thread({ threadId }) {
   const [files, setFiles] = useState([]);
   const [otherFiles, setOtherFiles] = useState([]);
   const [messageHandler, setMessageHandler] = useState();
+  const [addMemberPopup, setAddMemberPopup] = useState(false)
 
   const [messagesValue, messagesLoading, messagesError] = useCollection(
     query(
@@ -52,19 +56,27 @@ export default function Thread({ threadId }) {
 
   useEffect(() => {
     routeUser(auth, user, threadId, setValid, setOwner);
-    if (user && data) {
-      
-      setMessageHandler(new MessageHandler(user, data, threadId))
+    if (user && data && !thread.dm) {
+      GroupMessageHandler.create(user, data, threadId).then((value) => {
+        setMessageHandler(value)
+      })
+    }
+    else if(user && data){
+     setMessageHandler(new MessageHandler(user, data, threadId)) 
     }
   }, [user, data]);
 
   useEffect(() => {
-    messageHandler &&
+    messageHandler && thread.dm &&
       messageHandler.decryptMessages(messagesValue).then((msgs) => {
-        
+
         setMessages(msgs);
       });
   }, [messagesValue, messageHandler]);
+
+  useEffect(() => {
+    messageHandler && !thread.dm && messageHandler.joinThread()
+  }, [messageHandler])
 
   const fileInputRef = useRef();
 
@@ -121,92 +133,102 @@ export default function Thread({ threadId }) {
     fileInputRef.current.value = "";
   };
 
+  const addUser = async (e) => {
+    e.preventDefault();
+    setAddMemberPopup(true)
+  }
+
 
   return (
-    <main className="mb-24 mt-16">
-      <div className="fixed text-4xl text-white w-full flex justify-end pr-2 top-14 z-10">
-        <a type="button" href={`${router.asPath}/call`}>
-          <PiPhoneTransferFill className="mr-4" />
-        </a>
-        {owner && (
-          <IoIosSettings
-            onClick={(e) => router.push(`/${threadId}/settings`)}
-          />
-        )}
-      </div>
-      <div className="">
-        {messages &&
-          messages.map((el) => {
-            return <Message message={el} key={el.key} messageHandler={messageHandler} />;
-          })}
-      </div>
-      <div ref={bottomOfMessages} />
-      <div>
-        <form
-          onSubmit={(e) => submit(e)}
-          className="w-full flex justify-center fixed bottom-6"
-        >
-          <div className="flex flex-col items-center w-2/3 max-w-2xl">
-            <div className="text-white w-full flex justify-start flex-wrap">
-              {
-                images.map(({ file, url }) => (
-                  <div
-                    key={url}
-                    className="relative w-24 h-24 rounded-xl overflow-hidden m-4"
-                  >
-                    <button type="button" className="absolute left-2 top-2 text-white text-xl" onClick={(e) => { removeImage({ url, file }) }}><IoIosCloseCircle /></button>
-                    <img
-                      src={url}
-                      alt="uploaded"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ))
-              }
-              {
-                otherFiles.map((file) => {
-                  return (
+    <>
+      {addMemberPopup ? <AddMember setPopup={setAddMemberPopup} threadId={threadId} messageHandler={messageHandler} /> : ""}
+      <main className="mb-24 mt-16">
+        <div className="fixed text-4xl text-white w-full flex justify-end pr-2 top-14 z-10">
+          <a type="button cursor:pointer" href="" onClick={(e) => { addUser(e) }}>
+            <RiUserAddFill className="mr-4" />
+          </a>
+          <a type="button" href={`${router.asPath}/call`}>
+            <PiPhoneTransferFill className="mr-4" />
+          </a>
+          {owner && (
+            <IoIosSettings
+              onClick={(e) => router.push(`/${threadId}/settings`)}
+            />
+          )}
+        </div>
+        <div className="">
+          {messages &&
+            messages.map((el) => {
+              return <Message message={el} key={el.key} messageHandler={messageHandler} />;
+            })}
+        </div>
+        <div ref={bottomOfMessages} />
+        <div>
+          <form
+            onSubmit={(e) => submit(e)}
+            className="w-full flex justify-center fixed bottom-6"
+          >
+            <div className="flex flex-col items-center w-2/3 max-w-2xl">
+              <div className="text-white w-full flex justify-start flex-wrap">
+                {
+                  images.map(({ file, url }) => (
                     <div
-                      key={file}
-                      className="relative w-24 h-24 rounded-xl overflow-hidden m-4 bg-gray-800 text-xs p-2 text-nowrap"
+                      key={url}
+                      className="relative w-24 h-24 rounded-xl overflow-hidden m-4"
                     >
-                      <button type="button" className="absolute left-2 top-2 text-white text-xl" onClick={(e) => { removeFile(file) }}><IoIosCloseCircle /></button>
-                      <div className="w-full flex pt-5 pb-2 justify-center">
-                        <FaFile className="text-4xl" />
-                      </div>
-                      <p className="text-ellipsis overflow-hidden w-full">{file.name}</p>
+                      <button type="button" className="absolute left-2 top-2 text-white text-xl" onClick={(e) => { removeImage({ url, file }) }}><IoIosCloseCircle /></button>
+                      <img
+                        src={url}
+                        alt="uploaded"
+                        className="w-full h-full object-cover"
+                      />
                     </div>
-                  )
-                })
-              }
-            </div>
-            <div className="w-full h-1s mb-1 rounded overflow-hidden">
-              {loading ? <LinearProgress /> : ""}
-            </div>
-            <div className="flex w-full items-center">
-              <div
-                className={`border bg-transparent border-neutral-500 rounded h-12 w-full text-white flex`}
-              >
-                <button type="button" className="flex w-12 h-12 flex content-center justify-center flex-wrap text-xl" onClick={(e) => { e.preventDefault();  fileInputRef.current.click() }}>
-                  <GoPaperclip />
-                </button>
-                <input onChange={handleChange} multiple={true} ref={fileInputRef} type='file' hidden
-                />
-                <input
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  className="bg-transparent border-none rounded h-full w-full px-4 outline-none focus:outline-none focus:ring-0"
-                />
+                  ))
+                }
+                {
+                  otherFiles.map((file) => {
+                    return (
+                      <div
+                        key={file}
+                        className="relative w-24 h-24 rounded-xl overflow-hidden m-4 bg-gray-800 text-xs p-2 text-nowrap"
+                      >
+                        <button type="button" className="absolute left-2 top-2 text-white text-xl" onClick={(e) => { removeFile(file) }}><IoIosCloseCircle /></button>
+                        <div className="w-full flex pt-5 pb-2 justify-center">
+                          <FaFile className="text-4xl" />
+                        </div>
+                        <p className="text-ellipsis overflow-hidden w-full">{file.name}</p>
+                      </div>
+                    )
+                  })
+                }
               </div>
-              <button className="ml-3 border border-neutral-400 px-12 rounded text-white font-bold h-12">
-                Send
-              </button>
+              <div className="w-full h-1s mb-1 rounded overflow-hidden">
+                {loading ? <LinearProgress /> : ""}
+              </div>
+              <div className="flex w-full items-center">
+                <div
+                  className={`border bg-transparent border-neutral-500 rounded h-12 w-full text-white flex`}
+                >
+                  <button type="button" className="flex w-12 h-12 flex content-center justify-center flex-wrap text-xl" onClick={(e) => { e.preventDefault(); fileInputRef.current.click() }}>
+                    <GoPaperclip />
+                  </button>
+                  <input onChange={handleChange} multiple={true} ref={fileInputRef} type='file' hidden
+                  />
+                  <input
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    className="bg-transparent border-none rounded h-full w-full px-4 outline-none focus:outline-none focus:ring-0"
+                  />
+                </div>
+                <button className="ml-3 border border-neutral-400 px-12 rounded text-white font-bold h-12">
+                  Send
+                </button>
+              </div>
             </div>
-          </div>
-        </form>
+          </form>
 
-      </div>
-      {/* <button
+        </div>
+        {/* <button
         onClick={async () => {
           test(user, data)
         }}
@@ -214,15 +236,19 @@ export default function Thread({ threadId }) {
       >
         test
       </button> */}
-    </main>
+      </main>
+    </>
   );
 }
 
 export async function getStaticProps({ params }) {
   const { thread } = params;
+  let threadData = (await getDoc(doc(firestore, "threads", thread))).data()
+  threadData.latestMessage = null
+  threadData.createdAt = null
 
   return {
-    props: { threadId: thread },
+    props: { threadId: thread, thread: threadData },
     revalidate: 1,
   };
 }

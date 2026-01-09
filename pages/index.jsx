@@ -10,7 +10,7 @@ import { Thread } from "../components/thread";
 import {
   generateAndStoreSupplementalKeyPairs,
   loadThreads,
-  sendWelcomeMessage,
+  _sendWelcomeMessage,
   test,
   x3dh,
 } from "../lib/functions";
@@ -25,6 +25,7 @@ export default function Home() {
     query(
       collection(firestore, "threads"),
       where("members", "array-contains", user && user.uid),
+      // where("hidden", "==",false),
       limit(threadCount),
       orderBy("latestMessage", "desc")
     ),
@@ -34,6 +35,7 @@ export default function Home() {
   );
 
   useEffect(() => {
+    console.log(usersThreadsError)
     if (!usersThreadsLoading) {
       loadThreads(data, user, usersThreads).then((loadedThreads) => {
         setThreads(loadedThreads);
@@ -66,7 +68,7 @@ export default function Home() {
             setThreadCount(threadCount + 2);
           }
         }}
-      > 
+      >
         <h1 className="text-4xl font-bold text-white">Threads</h1>
         {threads && threads.map((el) => <Thread key={el.id} thread={el} />)}
         <button
