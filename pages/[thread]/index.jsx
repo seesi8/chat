@@ -75,7 +75,7 @@ export default function Thread({ threadId, thread }) {
   }, [messagesValue, messageHandler]);
 
   useEffect(() => {
-    messageHandler && !thread.dm && messageHandler.joinThread()
+    // messageHandler && !thread.dm && messageHandler.joinThread()
   }, [messageHandler])
 
   const fileInputRef = useRef();

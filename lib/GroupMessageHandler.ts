@@ -1,6 +1,6 @@
 import { uuidv4 } from "@firebase/util";
-import { b64, checkKeySignature, deleteKey, encryptMLS, generateAndStoreHPKEKeypair, generateAndStoreX25519Keypair, generateX25519Keypair, getStoredKey, getStoredMetadata, hkdfExpand, hkdfExpandWithLabels, hkdfExpandWithSalt, importEd25519PublicRaw, importHKDFKey, importMK, importX25519PublicRaw, sha256Bytes, sign, storeHeader, storeKey, storeMessage, storeMetadata, te, ub64, xorBytes } from "./e2ee/e2ee";
-import { setDoc, doc, writeBatch, getDoc, query, getDocs, collection, where, limitToLast, limit } from "firebase/firestore";
+import { b64, checkKeySignature, decryptMLS, decryptWithPrivateKey, deleteKey, encryptMLS, generateAndStoreHPKEKeypair, generateAndStoreX25519Keypair, generateX25519Keypair, getStoredKey, getStoredMetadata, hkdfExpand, hkdfExpandWithLabels, hkdfExpandWithSalt, importEd25519PublicRaw, importHKDFKey, importMK, importX25519PublicRaw, sha256Bytes, sign, storeHeader, storeKey, storeMessage, storeMetadata, td, te, ub64, verify, xorBytes } from "./e2ee/e2ee";
+import { setDoc, doc, writeBatch, getDoc, query, getDocs, collection, where, limitToLast, limit, updateDoc } from "firebase/firestore";
 import { firestore } from "./firebase"
 import { MessageHandler } from "./MessageHandler";
 import { GoogleAuthProvider } from "firebase/auth";
@@ -8,7 +8,7 @@ import { SetStateAction } from "react";
 import toast from "react-hot-toast";
 import { DocumentData } from "firebase-admin/firestore";
 import { KEMTree } from "./KEMTree";
-import { SecretTree } from "./SecretTree";
+import { SecretTree, SecretTreeRoot } from "./SecretTree";
 
 type MessageType = typeof MessageHandler.MESSAGETYPES[keyof typeof MessageHandler.MESSAGETYPES];
 
@@ -33,6 +33,7 @@ export class GroupMessageHandler {
     thread: any;
     kemTree: KEMTree;
     secretTree: SecretTree;
+    index: number;
 
     constructor(user: any, data: any, threadId: string) {
         if (!user || !data) {
@@ -71,9 +72,9 @@ export class GroupMessageHandler {
     }
 
     async setTrees() {
-        const kemTreeJson = await this.thread.KEMTree
+        const kemTreeJson = this.thread.ratchetTree
         const kemTree = await KEMTree.createFromJson(kemTreeJson)
-        const secretTree = await SecretTree.initiate({kemTreeRoot: kemTree.root})
+        const secretTree = await SecretTree.initiate({ kemTreeRoot: kemTree.root })
         this.kemTree = kemTree
         this.secretTree = secretTree;
     }
@@ -83,11 +84,14 @@ export class GroupMessageHandler {
             this.threadId = uuidv4()
         }
 
-        const {publicKey, privateKey} = await generateX25519Keypair()
-        const credential = {user: this.user.uid, identityKey: this.data.publicKeySK}
+        const { publicKey, privateKey } = await generateX25519Keypair()
+        const credential = { user: this.user.uid, identityKey: this.data.publicKeySK }
 
-        const kemTree = await KEMTree.initiate({publicKey, privateKey, threadId: this.threadId, credential})
-        const secretTree = await SecretTree.initiate({kemTreeRoot: kemTree.root})
+        const kemTree = await KEMTree.initiate({ publicKey, privateKey, threadId: this.threadId, credential })
+        const secretTree = await SecretTree.initiate({ kemTreeRoot: kemTree.root })
+
+        this.secretTree = secretTree
+        this.kemTree = kemTree
 
         const tree = await kemTree.exportJson()
 
@@ -105,16 +109,19 @@ export class GroupMessageHandler {
             groupName: groupName,
             latestMessage: new Date(),
             ratchetTree: tree,
-            treeHash: treeHash,
+            treeHash: b64(treeHash),
         }
 
         this.thread = threadState;
 
+        await storeMetadata(0, `n_${0}_${this.threadId}`)
+
         return threadState
     }
-    
+
     async createThread(groupName: string) {
         const publicThreadState = await this.initializeThreadState(groupName)
+        console.log(publicThreadState)
         const batch = writeBatch(firestore);
         batch.set(doc(firestore, "threads", this.threadId), publicThreadState)
         batch.set(doc(firestore, "threadsId", publicThreadState.threadId), {
@@ -126,7 +133,7 @@ export class GroupMessageHandler {
     }
 
     async submitMessage(files: Array<Blob>, message: string, setLoading: (value: SetStateAction<boolean>) => void) {
-
+        await this.sendMessage(te.encode(message), MessageHandler.MESSAGETYPES.TEXT)
         setLoading(false)
     }
 
@@ -159,7 +166,144 @@ export class GroupMessageHandler {
         }
     }
 
-    async runUpdate(){
-        
+    async sendMessage(messageBytes: Uint8Array, type: MessageType, messageSecrets: {
+        nonce: Uint8Array<ArrayBuffer>;
+        reuseGuard: string;
+        sendingKey: CryptoKey;
+    } | null = null) {
+        const KEMTreeNode = this.kemTree.root.findUser(this.user.uid)
+        const SecretTreeNode = this.secretTree.root.findIndex(KEMTreeNode.index)
+        if (messageSecrets == null) {
+            messageSecrets = await SecretTreeNode.getSendingKey()
+        }
+        const { ciphertext } = await encryptMLS(messageSecrets.sendingKey, messageSecrets.nonce, messageBytes, `${this.user.uid}`)
+
+        const n = await getStoredMetadata(`n_${KEMTreeNode.epoch}_${this.threadId}`)
+        await storeMetadata(n + 1, `n_${KEMTreeNode.epoch}_${this.threadId}`)
+
+        const header = {
+            from: this.user.uid,
+            reuseGuard: messageSecrets.reuseGuard,
+            n,
+            type,
+        }
+
+        let message = {
+            header, ciphertext, signature: null, timeSent: new Date()
+        }
+
+        const signature = await sign(this.data.privateSK, te.encode(JSON.stringify(message)))
+
+        message.signature = b64(signature)
+
+        const messageId = uuidv4()
+
+        await storeMessage(this.threadId, messageId, td.decode(messageBytes))
+
+        await this.uploadMessage(message, messageId)
+    }
+
+    async uploadMessage(message: any, messageId: string) {
+        const batch = writeBatch(firestore)
+
+        batch.update(doc(
+            firestore, "threads", this.threadId
+        ), {
+            "latestMessage": new Date()
+        })
+
+        batch.set(doc(
+            firestore, "threads", this.threadId, "messages", messageId
+        ), message)
+
+        await batch.commit()
+    }
+
+    async decryptMessage(message: any) {
+        const header = message.header
+        const signature = message.signature
+        const ciphertext = message.ciphertext
+        const from = header.from
+        const fromUser = await getDoc(doc(firestore, "users", from))
+        const fromPublicKey = await importEd25519PublicRaw(fromUser.data().publicKeySK)
+
+        const verified = await verify(fromPublicKey, te.encode(JSON.stringify({
+            header, ciphertext, signature: null
+        })), signature)
+
+
+        if (!verified) {
+            throw Error("Invalid Identity Key")
+        }
+
+        const KEMTreeNode = this.kemTree.root.findUser(from)
+        const SecretTreeNode = this.secretTree.root.findIndex(KEMTreeNode.index)
+        const messageSecrets = await SecretTreeNode.getReceivingKey(ub64(header.reuseGuard))
+
+        const { plainText } = await decryptMLS(messageSecrets.receivingKey, messageSecrets.nonce, ub64(message.ciphertext))
+        await storeMessage(this.threadId, message.id, plainText)
+        return { ...message, plainText }
+    }
+
+    async handleMessage(message: any) {
+        const decryptedMessage = await this.decryptMessage(message)
+        const type = message.header.type
+
+        if (type == MessageHandler.MESSAGETYPES.UPDATE) {
+            const updatePayload = JSON.parse(decryptedMessage.plainText)
+            await this.receiveUpdate(updatePayload)
+        }
+    }
+
+    async receiveUpdate(updatePayload: {
+        epoch: number;
+        updatePath: {
+            [key: string]: {
+                ephemeralPublicKey: Uint8Array<ArrayBuffer>;
+                iv: Uint8Array<ArrayBuffer>;
+                ciphertext: Uint8Array<ArrayBuffer>;
+            }
+        };
+        index: number;
+    }) {
+        const epoch = updatePayload.epoch
+        const updatePath = updatePayload.updatePath
+        const originIndex = updatePayload.index
+
+        for (let indexStr in updatePath) {
+            const index = parseInt(indexStr)
+            const kemTreeNode = this.kemTree.root.findIndex(index)
+            if (kemTreeNode.findUser(this.user.uid) == null) continue;
+            const decryptedPayload: {
+                nextPathKey: Uint8Array<ArrayBuffer>;
+                publicKey: string;
+            } = JSON.parse(td.decode(await decryptWithPrivateKey(kemTreeNode.privateKey)))
+            const sibilingPublicKey = await importX25519PublicRaw(decryptedPayload.publicKey)
+            kemTreeNode.getSibiling().publicKey = sibilingPublicKey
+            kemTreeNode.parent.workUpPath(decryptedPayload.nextPathKey)
+        }
+
+        this.secretTree.root = await SecretTreeRoot.rebuildTree(this.kemTree.root)
+    }
+
+    async startUpdate() {
+        const KEMTreeNode = this.kemTree.root.findUser(this.user.uid)
+        const SecretTreeNode = this.secretTree.root.findIndex(KEMTreeNode.index)
+        const sendingKeys = await SecretTreeNode.getSendingKey()
+        const updatePayload = await this.kemTree.getUpdatePayload(KEMTreeNode.index)
+        this.secretTree.root = await SecretTreeRoot.rebuildTree(this.kemTree.root)
+
+        const tree = await this.kemTree.exportJson()
+
+        const treeHash = await sha256Bytes(te.encode(JSON.stringify(tree)))
+
+        const threadState = {
+            ratchetTree: tree,
+            treeHash: b64(treeHash)
+        }
+
+        await updateDoc(doc(firestore, "threads", this.threadId), threadState)
+
+        await this.sendMessage(te.encode(JSON.stringify(updatePayload)), MessageHandler.MESSAGETYPES.UPDATE, sendingKeys)
     }
 }
