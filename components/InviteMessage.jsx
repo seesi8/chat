@@ -7,7 +7,7 @@ export function InviteMessage({ message, messageHandler }) {
     const router = useRouter();
     const { user, data } = useContext(UserContext)
 
-    console.log(message)
+    
     return (
         <div className="flex w-full justify-center flex-wrap">
 

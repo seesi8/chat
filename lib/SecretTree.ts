@@ -35,81 +35,42 @@ export class SecretTreeNode {
         right?: SecretTreeNode | null;
         epoch: number;
     }) {
-        let applicationSecret: Uint8Array | null = await getStoredKey(`applicationSecret_${args.index}_${args.epoch}_${args.threadId}`);
-        let handshakeSecret: Uint8Array | null = await getStoredKey(`handshakeSecret_${args.index}_${args.epoch}_${args.threadId}`);
-
         const secretTreeNode = new SecretTreeNode({ ...args })
-
-        if (applicationSecret == null || handshakeSecret == null) {
-            await secretTreeNode.deriveChildrenNodeSecrets()
-
-            applicationSecret = await getStoredKey(`applicationSecret_${args.index}_${args.epoch}_${args.threadId}`);
-            handshakeSecret = await getStoredKey(`handshakeSecret_${args.index}_${args.epoch}_${args.threadId}`);
-        }
-
-        secretTreeNode.applicationSecret = applicationSecret
-        secretTreeNode.handshakeSecret = handshakeSecret
 
         return secretTreeNode
     }
-
     async deriveChildrenNodeSecrets() {
         let nodeSecret = await getStoredKey(`nodeSecret_${this.index}_${this.epoch}_${this.threadId}`)
 
-        if (nodeSecret) {
-            if (this.left) {
-                const leftNodeSecret = await hkdfExpandWithLabels(nodeSecret, "left")
-                await storeKey(leftNodeSecret, `nodeSecret_${this.left.index}_${this.epoch}_${this.threadId}`)
+        // If we don't have our secret yet, we need to get it from our parent chain
+        if (!nodeSecret) {
+            if (!this.parent) {
+                // We're the root - use encryption secret
+                nodeSecret = await getStoredKey(`encryptionSecret_${this.epoch}_${this.threadId}`)
+            } else {
+                // Ensure parent has derived its secrets first
+                await this.parent.deriveChildrenNodeSecrets()
+
+                // Parent should now have its nodeSecret (or applicationSecret if it was derived)
+                let parentSecret = await getStoredKey(`nodeSecret_${this.parent.index}_${this.epoch}_${this.threadId}`)
+
+                // If parent's nodeSecret was deleted (has both children), we need to re-derive from grandparent
+                if (!parentSecret) {
+                    if (!this.parent.parent) {
+                        parentSecret = await getStoredKey(`encryptionSecret_${this.epoch}_${this.threadId}`)
+                    } else {
+                        // Recursively get parent's secret by going up the chain
+                        parentSecret = await this.getAncestorSecret(this.parent)
+                    }
+                }
+
+                const label = (this.index < this.parent.index) ? "left" : "right"
+                nodeSecret = await hkdfExpandWithLabels(parentSecret, label)
+                await storeKey(nodeSecret, `nodeSecret_${this.index}_${this.epoch}_${this.threadId}`)
             }
-
-            if (this.right) {
-                const rightNodeSecret = await hkdfExpandWithLabels(nodeSecret, "right")
-                await storeKey(rightNodeSecret, `nodeSecret_${this.right.index}_${this.epoch}_${this.threadId}`)
-            }
-
-            const applicationSecret = await hkdfExpandWithLabels(nodeSecret, "application")
-            const handshakeSecret = await hkdfExpandWithLabels(nodeSecret, "handshake")
-
-            await storeKey(applicationSecret, `applicationSecret_${this.index}_${this.epoch}_${this.threadId}`)
-            await storeKey(handshakeSecret, `handshakeSecret_${this.index}_${this.epoch}_${this.threadId}`)
-            this.applicationSecret = applicationSecret
-            this.handshakeSecret = handshakeSecret
-
-            if (this.left && this.right) {
-                await deleteKey(`nodeSecret_${this.index}_${this.epoch}_${this.threadId}`)
-            }
-
-            return;
         }
 
-        if (!this.parent) {
-            const encryption_secret = await getStoredKey(`encryptionSecret_${this.epoch}_${this.threadId}`)
-
-            if (this.left) {
-                const leftNodeSecret = await hkdfExpandWithLabels(encryption_secret, "left")
-                await storeKey(leftNodeSecret, `nodeSecret_${this.left.index}_${this.epoch}_${this.threadId}`)
-            }
-
-            if (this.right) {
-                const rightNodeSecret = await hkdfExpandWithLabels(encryption_secret, "right")
-                await storeKey(rightNodeSecret, `nodeSecret_${this.right.index}_${this.epoch}_${this.threadId}`)
-            }
-
-            const applicationSecret = await hkdfExpandWithLabels(encryption_secret, "application")
-            const handshakeSecret = await hkdfExpandWithLabels(encryption_secret, "handshake")
-
-            await storeKey(applicationSecret, `applicationSecret_${this.index}_${this.epoch}_${this.threadId}`)
-            await storeKey(handshakeSecret, `handshakeSecret_${this.index}_${this.epoch}_${this.threadId}`)
-            this.applicationSecret = applicationSecret
-            this.handshakeSecret = handshakeSecret
-
-            return;
-        }
-
-        await this.parent.deriveChildrenNodeSecrets()
-
-        nodeSecret = await getStoredKey(`nodeSecret_${this.index}_${this.epoch}_${this.threadId}`)
-
+        // Now derive children and own secrets
         if (this.left) {
             const leftNodeSecret = await hkdfExpandWithLabels(nodeSecret, "left")
             await storeKey(leftNodeSecret, `nodeSecret_${this.left.index}_${this.epoch}_${this.threadId}`)
@@ -131,8 +92,44 @@ export class SecretTreeNode {
         if (this.left && this.right) {
             await deleteKey(`nodeSecret_${this.index}_${this.epoch}_${this.threadId}`)
         }
+    }
 
-        return;
+    // Helper to walk up the tree and derive down to get a node's secret
+    private async getAncestorSecret(node: SecretTreeNode): Promise<Uint8Array> {
+        // Walk up to find an ancestor with a stored secret or the root
+        const path: SecretTreeNode[] = []
+        let current: SecretTreeNode | null = node
+
+        while (current) {
+            const secret = await getStoredKey(`nodeSecret_${current.index}_${current.epoch}_${current.threadId}`)
+            if (secret) {
+                // Found a stored secret, now derive down the path
+                return this.deriveDownPath(secret, path)
+            }
+            path.unshift(current)
+            current = current.parent
+        }
+
+        // Reached root with no secret found - start from encryption secret
+        const encryptionSecret = await getStoredKey(`encryptionSecret_${this.epoch}_${this.threadId}`)
+        return this.deriveDownPath(encryptionSecret, path)
+    }
+
+    private async deriveDownPath(startSecret: Uint8Array, path: SecretTreeNode[]): Promise<Uint8Array> {
+        let secret = startSecret
+
+        for (let i = 0; i < path.length; i++) {
+            const node = path[i]
+            const parent = i === 0 ? null : path[i - 1]
+
+            if (parent) {
+                const label = (node.index < parent.index) ? "left" : "right"
+                secret = await hkdfExpandWithLabels(secret, label)
+                await storeKey(secret, `nodeSecret_${node.index}_${node.epoch}_${node.threadId}`)
+            }
+        }
+
+        return secret
     }
 
     static async rebuild(kemTreeNode: KEMTreeNode, parent: SecretTreeNode) {
@@ -145,7 +142,24 @@ export class SecretTreeNode {
         return secretTreeNode;
     }
 
+    async setupKeys() {
+        let applicationSecret: Uint8Array | null = await getStoredKey(`applicationSecret_${this.index}_${this.epoch}_${this.threadId}`);
+        let handshakeSecret: Uint8Array | null = await getStoredKey(`handshakeSecret_${this.index}_${this.epoch}_${this.threadId}`);
+        if (applicationSecret == null || handshakeSecret == null) {
+            await this.deriveChildrenNodeSecrets()
+
+            applicationSecret = await getStoredKey(`applicationSecret_${this.index}_${this.epoch}_${this.threadId}`);
+            handshakeSecret = await getStoredKey(`handshakeSecret_${this.index}_${this.epoch}_${this.threadId}`);
+        }
+
+        this.applicationSecret = applicationSecret
+        this.handshakeSecret = handshakeSecret
+    }
+
     async getSendingKey() {
+
+        await this.setupKeys()
+        console.log(this.applicationSecret)
         const n = await getStoredMetadata(`n_${this.epoch}_${this.threadId}`)
         const sendingKey = await hkdfExpandWithLabels(this.applicationSecret, "send")
         let nonce = await hkdfExpandWithLabels(this.applicationSecret, `nonce:${n}`, 8)
@@ -159,7 +173,7 @@ export class SecretTreeNode {
 
         this.applicationSecret = nextApplicationSecret
         await storeKey(nextApplicationSecret, `applicationSecret_${this.index}_${this.epoch}_${this.threadId}`)
-
+        console.log(sendingKey)
         return {
             nonce: outNonce,
             reuseGuard: b64(reuse),
@@ -168,8 +182,10 @@ export class SecretTreeNode {
     }
 
     async getReceivingKey(reuse: Uint8Array) {
-        const n = await getStoredMetadata(`n_${this.epoch}_${this.threadId}`)
+        await this.setupKeys()
 
+        const n = await getStoredMetadata(`n_${this.epoch}_${this.threadId}`)
+        console.log(this.applicationSecret)
         const sendingKey = await hkdfExpandWithLabels(this.applicationSecret, "send")
         let nonce = await hkdfExpandWithLabels(this.applicationSecret, `nonce:${n}`, 8)
         const nextApplicationSecret = await hkdfExpandWithLabels(this.applicationSecret, "application")
@@ -181,10 +197,10 @@ export class SecretTreeNode {
 
         this.applicationSecret = nextApplicationSecret
         await storeKey(nextApplicationSecret, `applicationSecret_${this.index}_${this.epoch}_${this.threadId}`)
-
+        console.log(sendingKey)
         return {
             nonce: outNonce,
-            receivingKey: await importHKDFKey(sendingKey)
+            receivingKey: await importAesGcmKey(sendingKey)
         }
     }
 
@@ -231,20 +247,8 @@ export class SecretTreeRoot extends SecretTreeNode {
         left?: SecretTreeNode | null;
         right?: SecretTreeNode | null;
     }) {
-        let applicationSecret: Uint8Array | null = await getStoredKey(`applicationSecret_${args.kemTreeRoot.index}_${args.kemTreeRoot.epoch}_${args.kemTreeRoot.threadId}`);
-        let handshakeSecret: Uint8Array | null = await getStoredKey(`handshakeSecret_${args.kemTreeRoot.index}_${args.kemTreeRoot.epoch}_${args.kemTreeRoot.threadId}`);
 
         const secretTreeNode = new SecretTreeRoot({ ...args })
-
-        if (applicationSecret == null || handshakeSecret == null) {
-            await secretTreeNode.deriveChildrenNodeSecrets()
-
-            applicationSecret = await getStoredKey(`applicationSecret_${args.kemTreeRoot.index}_${args.kemTreeRoot.epoch}_${args.kemTreeRoot.threadId}`);
-            handshakeSecret = await getStoredKey(`handshakeSecret_${args.kemTreeRoot.index}_${args.kemTreeRoot.epoch}_${args.kemTreeRoot.threadId}`);
-        }
-
-        secretTreeNode.applicationSecret = applicationSecret
-        secretTreeNode.handshakeSecret = handshakeSecret
 
         return secretTreeNode
     }

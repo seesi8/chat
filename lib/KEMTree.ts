@@ -1,9 +1,10 @@
-import { b64, deriveX25519Keypair, encryptMLS, encryptWithPublicKey, exportKey, getStoredKey, hkdfExpandWithLabels, importX25519PublicRaw, sha256Bytes, storeKey, te, ub64 } from "./e2ee/e2ee";
+import { b64, deleteKey, deriveX25519Keypair, encryptMLS, encryptWithPublicKey, exportKey, getStoredKey, hkdfExpandWithLabels, importHKDFKeyRaw, importX25519PublicRaw, sha256Bytes, storeKey, te, ub64 } from "./e2ee/e2ee";
+import { depthEdgesFromLeaves, mlsChildren } from "./functions";
 import { SecretTree } from "./SecretTree";
 
 export class KEMTreeNode {
     public publicKey?: CryptoKey | null = null;
-    public privateKey?: CryptoKey;
+    public privateKey?: CryptoKey | null = null;
     public threadId: string;
     public index: number;
     public left: KEMTreeNode | null = null;
@@ -14,8 +15,8 @@ export class KEMTreeNode {
 
     constructor(args: {
         index: number;
-        publicKey: CryptoKey | null;
-        privateKey?: CryptoKey;
+        publicKey?: CryptoKey | null;
+        privateKey?: CryptoKey | null;
         threadId: string;
         left?: KEMTreeNode | null;
         right?: KEMTreeNode | null;
@@ -52,16 +53,24 @@ export class KEMTreeNode {
     static async createFromJson(json: any, parent: KEMTreeNode | null = null): Promise<KEMTreeNode> {
         const index = json.index;
         const threadId = json.threadId;
-        const privateKey = await getStoredKey(`privateKey_${index}_${json.epoch}_${threadId}`)
-        const publicKey = await importX25519PublicRaw(json.publicKey)
+        const privateKey = await getStoredKey(`privateKey_${index}_${json.epoch}_${threadId}`) ?? null
+        const publicKey = await importX25519PublicRaw(ub64(json.publicKey))
         const credential = json.credential ?? null;
         const kemTreeNode = new KEMTreeNode({ index, publicKey, privateKey, threadId, credential, epoch: json.epoch, parent: parent })
         kemTreeNode.left = json.left ? await KEMTreeNode.createFromJson(json.left, kemTreeNode) : null
         kemTreeNode.right = json.right ? await KEMTreeNode.createFromJson(json.right, kemTreeNode) : null
         return kemTreeNode
     }
+
+    async setPrivateKey(privateKey: CryptoKey) {
+
+        await storeKey(privateKey, `privateKey_${this.index}_${this.epoch}_${this.threadId}`) ?? null
+        this.privateKey = privateKey
+
+    }
+
     async getExportable() {
-        const publicKeyRaw = await exportKey(this.publicKey)
+        const publicKeyRaw = (await exportKey(this.publicKey)) ?? null
 
         let data: {
             index: number;
@@ -79,8 +88,8 @@ export class KEMTreeNode {
             credential: this.credential,
             epoch: this.epoch
         }
-        const left = await this.left?.getExportable()
-        const right = await this.right?.getExportable()
+        const left = (await this.left?.getExportable()) ?? null
+        const right = (await this.right?.getExportable()) ?? null
 
         return { ...data, left, right };
     }
@@ -90,7 +99,7 @@ export class KEMTreeNode {
         if (this.credential) return null;
 
         //Open
-        if (!this.publicKey) return this.index;
+        if (!this.publicKey && !this.left && !this.right) return this.index;
 
         if (this.left) {
             const leftOpen = this.left.getOpenChildIndex();
@@ -105,7 +114,6 @@ export class KEMTreeNode {
         return null;
     }
 
-
     async workUpPath(pathSecret: Uint8Array, updatePath = {}) {
         this.epoch += 1
 
@@ -113,6 +121,7 @@ export class KEMTreeNode {
         await storeKey(privateKey, `privateKey_${this.index}_${this.epoch}_${this.threadId}`)
         this.privateKey = privateKey
         this.publicKey = publicKey
+        console.log("pathSecret: ", pathSecret)
         const nextPathKey = await hkdfExpandWithLabels(pathSecret, "path", 32)
 
         if (this.parent) {
@@ -127,9 +136,9 @@ export class KEMTreeNode {
             }
 
             const sibilingPublicKey = sibiling.publicKey
-            const payload = { nextPathKey, publicKey: await exportKey(publicKey) }
+            const payload = { nextPathKey: b64(nextPathKey), publicKey: await exportKey(publicKey) }
 
-            const encryptedPayload = await encryptWithPublicKey(sibilingPublicKey, payload)
+            const encryptedPayload = await encryptWithPublicKey(sibilingPublicKey, te.encode(JSON.stringify(payload)))
 
             updatePath["" + sibiling.index] = encryptedPayload
 
@@ -157,6 +166,14 @@ export class KEMTreeNode {
         return null
     }
 
+    async getPrivateKey() {
+        const privateKey = (await getStoredKey(`privateKey_${this.index}_${this.epoch}_${this.threadId}`)) ?? null
+
+
+
+        return this.privateKey ?? privateKey
+    }
+
     findUser(userId: string): KEMTreeNode | null {
         if (userId == this.credential?.user) return this;
         const left = this.left?.findUser(userId)
@@ -180,6 +197,73 @@ export class KEMTreeNode {
         }
         return sibiling
     }
+
+    getNumberOfDecendants() {
+        let decendants = 0;
+        if (this.left) {
+            decendants++;
+            decendants += this.left.getNumberOfDecendants()
+        }
+        if (this.right) {
+            decendants++;
+            decendants += this.right.getNumberOfDecendants()
+        }
+        return decendants
+    }
+
+    getNumberOfLeafs() {
+        let leafs = 0;
+        if (this.credential) {
+            leafs++;
+        }
+        if (this.left?.credential) {
+            leafs += this.left.getNumberOfLeafs()
+        }
+        if (this.right?.credential) {
+            leafs += this.right.getNumberOfLeafs()
+        }
+        return leafs
+    }
+
+    async moveToIndex(newIndex: number) {
+
+        const privateKey = await getStoredKey(`privateKey_${this.index}_${this.epoch}_${this.threadId}`)
+        const applicationSecret = await getStoredKey(`applicationSecret_${this.index}_${this.epoch}_${this.threadId}`)
+        const handshakeSecret = await getStoredKey(`handshakeSecret_${this.index}_${this.epoch}_${this.threadId}`)
+        const nodeSecret = await getStoredKey(`nodeSecret_${this.index}_${this.epoch}_${this.threadId}`)
+
+        await deleteKey(`privateKey_${this.index}_${this.epoch}_${this.threadId}`)
+        await deleteKey(`applicationSecret_${this.index}_${this.epoch}_${this.threadId}`)
+        await deleteKey(`handshakeSecret_${this.index}_${this.epoch}_${this.threadId}`)
+        await deleteKey(`nodeSecret_${this.index}_${this.epoch}_${this.threadId}`)
+
+        await storeKey(privateKey, `privateKey_${newIndex}_${this.epoch}_${this.threadId}`)
+        await storeKey(applicationSecret, `applicationSecret_${privateKey}_${this.epoch}_${this.threadId}`)
+        await storeKey(handshakeSecret, `handshakeSecret_${privateKey}_${this.epoch}_${this.threadId}`)
+        await storeKey(nodeSecret, `nodeSecret_${this.index}_${this.epoch}_${this.threadId}`)
+
+        this.index = newIndex
+
+    }
+
+    async fillOutTree(depth: number) {
+        const { left, right } = mlsChildren(depth, this.index);
+
+        if (left != null && this.left == null) {
+            this.left = new KEMTreeNode({ index: left, threadId: this.threadId, epoch: this.epoch, parent: this });
+        }
+        if (right != null && this.right == null) {
+            this.right = new KEMTreeNode({ index: right, threadId: this.threadId, epoch: this.epoch, parent: this });
+        }
+
+        if (left == null && right == null) return;
+
+        await Promise.all([
+            this.left ? this.left.fillOutTree(depth) : Promise.resolve(),
+            this.right ? this.right.fillOutTree(depth) : Promise.resolve(),
+        ]);
+    }
+
 }
 
 export class KEMTreeRoot extends KEMTreeNode {
@@ -225,7 +309,7 @@ export class KEMTreeRoot extends KEMTreeNode {
         }
         const groupContextStringified = JSON.stringify(groupContext)
         const epoch_secret = await hkdfExpandWithLabels(commit_secret, `epoch:${groupContextStringified}`, 32, old_init)
-        console.log("done")
+
         const init_secret = await hkdfExpandWithLabels(commit_secret, `init:${groupContextStringified}`, 16, old_init)
         const encryption_secret = await hkdfExpandWithLabels(epoch_secret, `encryption`)
 
@@ -257,7 +341,9 @@ export class KEMTreeRoot extends KEMTreeNode {
     }
 
     async workUpPath(pathSecret: Uint8Array, updatePath = {}) {
-        this.updateEpoch(this.epoch + 1)
+        console.log("pathSecret Parent: ", pathSecret)
+
+        this.updateEpoch(this.epoch + 1) 
 
         const { privateKey, publicKey } = await deriveX25519Keypair(pathSecret)
         await storeKey(privateKey, `privateKey_${this.index}_${this.epoch}_${this.threadId}`)
@@ -266,24 +352,45 @@ export class KEMTreeRoot extends KEMTreeNode {
         const commit_secret = pathSecret;
         const old_init = this.initSecret;
         const tree = await this.getExportable()
+        console.log(this)
+        console.log(tree)
         const treeHash = await sha256Bytes(te.encode(JSON.stringify(tree)))
         const groupContext = {
             epoch: this.epoch,
             treeHash: b64(treeHash),
         }
         const groupContextStringified = JSON.stringify(groupContext)
+        console.log(groupContextStringified)
         const epoch_secret = await hkdfExpandWithLabels(commit_secret, `epoch:${groupContextStringified}`, 32, old_init)
         const init_secret = await hkdfExpandWithLabels(commit_secret, `init:${groupContextStringified}`, 16, old_init)
         const encryption_secret = await hkdfExpandWithLabels(epoch_secret, `encryption`)
 
         await storeKey(encryption_secret, `encryptionSecret_${this.epoch}_${this.threadId}`)
         await storeKey(init_secret, `initSecret_${this.epoch}_${this.threadId}`)
-
         this.encryptionSecret = encryption_secret
         this.initSecret = init_secret
 
         return updatePath
     }
+
+    async asNode() {
+        const exportable = await this.getExportable();
+        return await KEMTreeNode.createFromJson(exportable, null);
+    }
+
+    async shiftTree() {
+        const numLeaves = this.getNumberOfLeafs()
+        const width = 2 * (numLeaves) + 1
+        const index = (1 << Math.log2(width)) - 1
+        const newRoot = new KEMTreeRoot({ index: index, publicKey: null, privateKey: null, threadId: this.threadId, epoch: this.epoch })
+        newRoot.left = await this.asNode()
+        newRoot.left.parent = newRoot
+        const depth = depthEdgesFromLeaves(numLeaves * 2)
+
+        await newRoot.fillOutTree(depth)
+        return newRoot;
+    }
+
 }
 
 export class KEMTree {
@@ -314,16 +421,22 @@ export class KEMTree {
         return await this.root.getExportable()
     }
 
-    async addNode() {
+    async addNode(payload: any) {
         const leftMostOpenIndex = this.root.getOpenChildIndex()
         if (leftMostOpenIndex != null) {
-            this.addNodeToOpenIndex(leftMostOpenIndex)
+            await this.addNodeToOpenIndex(leftMostOpenIndex, payload)
+        }
+        else {
+            await this.shiftTree()
+            await this.addNode(payload)
         }
     }
 
     async getUpdatePayload(index: number) {
         const node = this.root.findIndex(index)
         const pathSecret = crypto.getRandomValues(new Uint8Array(32))
+
+
         const updatePath = await node.workUpPath(pathSecret)
 
         const messagePayload = {
@@ -335,7 +448,17 @@ export class KEMTree {
         return messagePayload
     }
 
-    private async addNodeToOpenIndex(index: number) {
+    private async addNodeToOpenIndex(index: number, payload: any) {
         const node = this.root.findIndex(index)
+
+
+        const credential = payload.credential
+        const publicKey = await importX25519PublicRaw(ub64(payload.init_key))
+        node.credential = credential
+        node.publicKey = publicKey
+    }
+
+    async shiftTree() {
+        this.root = await this.root.shiftTree()
     }
 }

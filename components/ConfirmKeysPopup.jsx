@@ -12,13 +12,13 @@ export default function ConfirmKeyPopup({ setPopup, other_data, accepting }) {
     useEffect(() => {
         if (user.uid > other_data.id) {
             sixNums(`${data.publicKey}${other_data.publicKey}`).then((nums) => {
-                console.log(nums)
+                
                 setNumbers(nums)
             })
         }
         else {
             sixNums(`${other_data.publicKey}${data.publicKey}`).then((nums) => {
-                console.log(nums)
+                
 
                 setNumbers(nums)
             })
@@ -26,7 +26,7 @@ export default function ConfirmKeyPopup({ setPopup, other_data, accepting }) {
     }, [])
 
     useEffect(() => {
-        console.log(checked)
+        
     }, [checked])
 
 

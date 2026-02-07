@@ -61,13 +61,14 @@ export default function Thread({ threadId, thread }) {
         setMessageHandler(value)
       })
     }
-    else if(user && data){
-     setMessageHandler(new MessageHandler(user, data, threadId)) 
+    else if (user && data) {
+      setMessageHandler(new MessageHandler(user, data, threadId))
     }
   }, [user, data]);
 
   useEffect(() => {
-    messageHandler && thread.dm &&
+    //&& thread.dm
+    messageHandler  &&
       messageHandler.decryptMessages(messagesValue).then((msgs) => {
 
         setMessages(msgs);
@@ -228,14 +229,14 @@ export default function Thread({ threadId, thread }) {
           </form>
 
         </div>
-        {/* <button
-        onClick={async () => {
-          test(user, data)
-        }}
-        className="fixed right-5 bottom-5 h-20 w-20 bg-green-500 rounded font-bold text-black cursor-pointer"
-      >
-        test
-      </button> */}
+        <button
+          onClick={async () => {
+            messageHandler.test()
+          }}
+          className="fixed right-5 bottom-5 h-20 w-20 bg-green-500 rounded font-bold text-black cursor-pointer"
+        >
+          test
+        </button>
       </main>
     </>
   );

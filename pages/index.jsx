@@ -35,7 +35,7 @@ export default function Home() {
   );
 
   useEffect(() => {
-    console.log(usersThreadsError)
+    
     if (!usersThreadsLoading) {
       loadThreads(data, user, usersThreads).then((loadedThreads) => {
         setThreads(loadedThreads);
