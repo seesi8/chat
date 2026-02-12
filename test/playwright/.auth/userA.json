@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://127.0.0.1:3000",
+      "localStorage": [
+        {
+          "name": "firebase:authUser:AIzaSyAO3d0rzfBpXDzXzyxLstFncYjY8-jyEJ4:[DEFAULT]",
+          "value": "{\"uid\":\"2zn0VGGTOYdJaPZAc7gVYhmFhCU2\",\"email\":\"e2e-user-a+1770512505039-566369@example.com\",\"emailVerified\":false,\"isAnonymous\":false,\"providerData\":[{\"providerId\":\"password\",\"uid\":\"e2e-user-a+1770512505039-566369@example.com\",\"displayName\":null,\"email\":\"e2e-user-a+1770512505039-566369@example.com\",\"phoneNumber\":null,\"photoURL\":null}],\"stsTokenManager\":{\"refreshToken\":\"AMf-vBy-BO6tGsQfSS6TjpLmkZ42QaxFdxbkWufWQKtLCLYNYazXVD7C1gKqabp8i7XocPXeBwqV4LdUaueKF6Te41G2z0mTDt0pcP7FDK1_pfIPBkgOdmxS6UwhbylZtAg71B7pQYayQycA7dBqAbx_rcTMif5h_2veaMqXvQuQ7aI1R7lnWVt6reZC1dn8Y2FcMzkcIkwMUG4c1svFJdMy0C2ZuYzlk4UGJfiKftufgyB840PKhXY\",\"accessToken\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6IjRiMTFjYjdhYjVmY2JlNDFlOTQ4MDk0ZTlkZjRjNWI1ZWNhMDAwOWUiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3NlY3VyZXRva2VuLmdvb2dsZS5jb20vY2hhdC0yNGNlNyIsImF1ZCI6ImNoYXQtMjRjZTciLCJhdXRoX3RpbWUiOjE3NzA1MTI1MDgsInVzZXJfaWQiOiIyem4wVkdHVE9ZZEphUFpBYzdnVllobUZoQ1UyIiwic3ViIjoiMnpuMFZHR1RPWWRKYVBaQWM3Z1ZZaG1GaENVMiIsImlhdCI6MTc3MDUxMjUwOCwiZXhwIjoxNzcwNTE2MTA4LCJlbWFpbCI6ImUyZS11c2VyLWErMTc3MDUxMjUwNTAzOS01NjYzNjlAZXhhbXBsZS5jb20iLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnsiZW1haWwiOlsiZTJlLXVzZXItYSsxNzcwNTEyNTA1MDM5LTU2NjM2OUBleGFtcGxlLmNvbSJdfSwic2lnbl9pbl9wcm92aWRlciI6InBhc3N3b3JkIn19.kNtZ12bFoXNMcWPuLTwX_3K5vYMMjykB69eW8Av2Nc0UYHcgDMZBXbyLoCCqAnRf8U-hs4iTIwlMvdWitmGB2sI_ib9Wnhktcx33KCbTTxEnkQxKVNpnDlgxuMufdy5G_DNba1XF_86dsF_8FytStoxalIu75G0jpZYM7yefi-rwhJ76iskTjTafcO_n7YA1O7zdG7RGl-Ka8185rRUuBzanJ307lTf3KnFliJiIG4rzu83HB6_xDmTXxlY0-_hekLZhJ7Er2-KMQRU8FsbflqFEUEGoyQbC_osZt1HHSz8vOQIuMDflhkH_s7xGZXeEFgq82FWInFHyT4vdkeJMRA\",\"expirationTime\":1770516108577},\"createdAt\":\"1770512508233\",\"lastLoginAt\":\"1770512508233\",\"apiKey\":\"AIzaSyAO3d0rzfBpXDzXzyxLstFncYjY8-jyEJ4\",\"appName\":\"[DEFAULT]\"}"
+        }
+      ]
+    }
+  ]
+}

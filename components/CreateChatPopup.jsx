@@ -119,7 +119,7 @@ export default function CreateChatPopup({ setPopup }) {
       <button
         onClick={() => {
           if (!dm) {
-            groupHandler.createThread(groupName).then((success) => {
+            groupHandler.createThread(members, groupName).then((success) => {
               if (success) {
                 setPopup(false);
               }

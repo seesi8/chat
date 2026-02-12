@@ -1,4 +1,4 @@
-import { deleteKey, getStoredKey, hkdfExpandWithLabels, xorBytes, storeKey, importHKDFKey, getStoredMetadata, b64, importAesGcmKey } from "./e2ee/e2ee";
+import { deleteKey, getStoredKey, hkdfExpandWithLabels, xorBytes, storeKey, importHKDFKey, getStoredMetadata, b64, importAesGcmKey, storeMetadata } from "./e2ee/e2ee";
 import { KEMTreeNode, KEMTreeRoot } from "./KEMTree";
 
 export class SecretTreeNode {
@@ -159,37 +159,50 @@ export class SecretTreeNode {
     async getSendingKey() {
 
         await this.setupKeys()
-        console.log(this.applicationSecret)
-        const n = await getStoredMetadata(`n_${this.epoch}_${this.threadId}`)
+
+        const n = (await getStoredMetadata(`n_${this.epoch}_${this.threadId}`)) ?? 0
         const sendingKey = await hkdfExpandWithLabels(this.applicationSecret, "send")
+
+
         let nonce = await hkdfExpandWithLabels(this.applicationSecret, `nonce:${n}`, 8)
         const nextApplicationSecret = await hkdfExpandWithLabels(this.applicationSecret, "application")
         let nonceFirstFour = nonce.slice(0, 4)
         const reuse = crypto.getRandomValues(new Uint8Array(4))
+
+
+
         nonceFirstFour = xorBytes(nonceFirstFour, reuse)
         const outNonce = new Uint8Array(8)
         outNonce.set(nonceFirstFour, 0)
         outNonce.set(nonce.slice(4), 4)
 
         this.applicationSecret = nextApplicationSecret
+
         await storeKey(nextApplicationSecret, `applicationSecret_${this.index}_${this.epoch}_${this.threadId}`)
-        console.log(sendingKey)
+        await storeMetadata(n + 1, `n_${this.epoch}_${this.threadId}`)
+
+        
+        
         return {
             nonce: outNonce,
             reuseGuard: b64(reuse),
-            sendingKey: await importAesGcmKey(sendingKey)
+            sendingKey: await importAesGcmKey(sendingKey),
+            n
         }
     }
 
-    async getReceivingKey(reuse: Uint8Array) {
+    async getReceivingKey(reuse: Uint8Array, n: number) {
         await this.setupKeys()
 
-        const n = await getStoredMetadata(`n_${this.epoch}_${this.threadId}`)
-        console.log(this.applicationSecret)
         const sendingKey = await hkdfExpandWithLabels(this.applicationSecret, "send")
+
+
         let nonce = await hkdfExpandWithLabels(this.applicationSecret, `nonce:${n}`, 8)
         const nextApplicationSecret = await hkdfExpandWithLabels(this.applicationSecret, "application")
         let nonceFirstFour = nonce.slice(0, 4)
+
+
+
         nonceFirstFour = xorBytes(nonceFirstFour, reuse)
         const outNonce = new Uint8Array(8)
         outNonce.set(nonceFirstFour, 0)
@@ -197,7 +210,9 @@ export class SecretTreeNode {
 
         this.applicationSecret = nextApplicationSecret
         await storeKey(nextApplicationSecret, `applicationSecret_${this.index}_${this.epoch}_${this.threadId}`)
-        console.log(sendingKey)
+
+        
+        
         return {
             nonce: outNonce,
             receivingKey: await importAesGcmKey(sendingKey)

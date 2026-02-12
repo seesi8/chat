@@ -68,7 +68,7 @@ export default function Thread({ threadId, thread }) {
 
   useEffect(() => {
     //&& thread.dm
-    messageHandler  &&
+    messageHandler &&
       messageHandler.decryptMessages(messagesValue).then((msgs) => {
 
         setMessages(msgs);

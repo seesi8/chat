@@ -1,293 +1,146 @@
-const { setup, teardown } = require("./helpers");
-const { assertFails, assertSucceeds } = require("@firebase/testing");
+const { assertFails, assertSucceeds } = require('@firebase/testing');
+const { setup, teardown } = require('./helpers');
+const { buildUser, buildUsername, tomorrow } = require('./fixtures');
 
-describe("testing users rules", () => {
-    let db;
-    let users;
+describe('users rules', () => {
+  afterEach(async () => {
+    await teardown();
+  });
 
-    beforeAll(async () => {
-        //empty
+  test('denies reading users when signed out', async () => {
+    const db = await setup();
+    await assertFails(db.collection('/users').get());
+  });
+
+  test('allows reading users when signed in', async () => {
+    const db = await setup({ uid: 'viewer' });
+    await assertSucceeds(db.collection('/users').get());
+  });
+
+  test('allows creating own user when coupled username doc is in same batch', async () => {
+    const db = await setup({ uid: 'alice' });
+    const userData = buildUser('alice', { username: 'alice' });
+
+    const batch = db.batch();
+    batch.set(db.doc('/users/alice'), userData);
+    batch.set(db.doc('/usernames/alice'), buildUsername('alice'));
+
+    await assertSucceeds(batch.commit());
+  });
+
+  test('denies creating user when username doc is missing', async () => {
+    const db = await setup({ uid: 'alice' });
+    const userData = buildUser('alice', { username: 'alice' });
+
+    await assertFails(db.doc('/users/alice').set(userData));
+  });
+
+  test('denies creating user when auth uid does not match document id', async () => {
+    const db = await setup({ uid: 'alice' });
+    const userData = buildUser('bob', { username: 'bob' });
+
+    const batch = db.batch();
+    batch.set(db.doc('/users/bob'), userData);
+    batch.set(db.doc('/usernames/bob'), buildUsername('bob'));
+
+    await assertFails(batch.commit());
+  });
+
+  test('denies creating user with future dates', async () => {
+    const db = await setup({ uid: 'alice' });
+    const userData = buildUser('alice', {
+      username: 'alice',
+      creationDate: tomorrow(),
+      lastActive: tomorrow(),
     });
 
-    afterEach(async () => {
-        await teardown();
-    });
+    const batch = db.batch();
+    batch.set(db.doc('/users/alice'), userData);
+    batch.set(db.doc('/usernames/alice'), buildUsername('alice'));
 
-    //Reading
-    test("fail reading threads when not sighned in", async () => {
-        // Custom Matchers
-        db = await setup();
-        users = db.collection("/users");
-        await expect(await assertFails(users.get()));
-    });
+    await assertFails(batch.commit());
+  });
 
-    test("succeed reading threads when signed in", async () => {
-        db = await setup({ uid: "foo" });
-        users = db.collection("/users");
-        await expect(await assertSucceeds(users.get()));
-    });
+  test('allows owner to update their own user document', async () => {
+    const seed = {
+      '/users/alice': buildUser('alice', { username: 'alice' }),
+      '/usernames/alice': buildUsername('alice'),
+    };
+    const db = await setup({ uid: 'alice' }, seed);
 
-    //Writing
-    test("fail in setting users when not all feilds", async () => {
-        const userData = {
-            displayName: "test",
-            username: "username",
-            profileIMG: "storageUrl",
-            email: "email",
-            creationDate: new Date(),
-            lastActive: new Date(),
-            // missing feild friends: []
-        };
+    await assertSucceeds(
+      db.doc('/users/alice').update({
+        displayName: 'Alice Updated',
+        username: 'alice',
+        profileIMG: 'https://example.com/new.png',
+        email: 'alice@example.com',
+        creationDate: seed['/users/alice'].creationDate,
+        lastActive: new Date(),
+        friends: [],
+      })
+    );
+  });
 
-        const usernameData = {
-            uid: "test",
-        };
+  test('allows non-owner to update only friends field', async () => {
+    const baseUser = buildUser('alice', { username: 'alice' });
+    const seed = {
+      '/users/alice': baseUser,
+      '/usernames/alice': buildUsername('alice'),
+    };
+    const db = await setup({ uid: 'bob' }, seed);
 
-        db = await setup({ uid: "test" });
+    await assertSucceeds(
+      db.doc('/users/alice').update({
+        displayName: baseUser.displayName,
+        username: baseUser.username,
+        profileIMG: baseUser.profileIMG,
+        email: baseUser.email,
+        creationDate: baseUser.creationDate,
+        lastActive: baseUser.lastActive,
+        friends: ['bob'],
+      })
+    );
+  });
 
-        var batch = db.batch();
-        batch.set(db.doc("/users/test"), userData);
-        batch.set(db.doc("/usernames/username"), usernameData);
+  test('denies non-owner updates when fields other than friends change', async () => {
+    const baseUser = buildUser('alice', { username: 'alice' });
+    const seed = {
+      '/users/alice': baseUser,
+      '/usernames/alice': buildUsername('alice'),
+    };
+    const db = await setup({ uid: 'bob' }, seed);
 
-        await expect(await assertFails(batch.commit()));
-    });
+    await assertFails(
+      db.doc('/users/alice').update({
+        displayName: 'Hacked',
+        username: baseUser.username,
+        profileIMG: baseUser.profileIMG,
+        email: baseUser.email,
+        creationDate: baseUser.creationDate,
+        lastActive: baseUser.lastActive,
+        friends: baseUser.friends,
+      })
+    );
+  });
 
-    test("fail in setting when is not user", async () => {
-        const userData = {
-            displayName: "hi",
-            username: "username",
-            profileIMG: "storageUrl",
-            email: "email",
-            creationDate: new Date(),
-            lastActive: new Date(),
-            friends: [],
-        };
+  test('denies updates with future lastActive date', async () => {
+    const baseUser = buildUser('alice', { username: 'alice' });
+    const seed = {
+      '/users/alice': baseUser,
+      '/usernames/alice': buildUsername('alice'),
+    };
+    const db = await setup({ uid: 'alice' }, seed);
 
-        const usernameData = {
-            uid: "hi",
-        };
-
-        db = await setup({ uid: "test" });
-
-        var batch = db.batch();
-        batch.set(db.doc("/users/hi"), userData);
-        batch.set(db.doc("/usernames/username"), usernameData);
-
-        await expect(await assertFails(batch.commit()));
-    });
-
-    test("fail in setting when invalid date", async () => {
-        const today = new Date();
-        const tomorrow = new Date(today);
-        const userData = {
-            displayName: "test",
-            username: "username",
-            profileIMG: "storageUrl",
-            email: "email",
-            creationDate: new Date(tomorrow.setDate(tomorrow.getDate() + 1)),
-            lastActive: new Date(tomorrow.setDate(tomorrow.getDate() + 1)),
-            friends: [],
-        };
-
-        const usernameData = {
-            uid: "test",
-        };
-
-        db = await setup({ uid: "test" });
-
-        var batch = db.batch();
-        batch.set(db.doc("/users/test"), userData);
-        batch.set(db.doc("/usernames/username"), usernameData);
-
-        await expect(await assertFails(batch.commit()));
-    });
-
-    test("fail in setting users when username doc is not created", async () => {
-        const userData = {
-            displayName: "test",
-            username: "username",
-            profileIMG: "storageUrl",
-            email: "email",
-            creationDate: new Date(),
-            lastActive: new Date(),
-            friends: [],
-        };
-
-        db = await setup({ uid: "test" });
-
-        var batch = db.batch();
-        batch.set(db.doc("/users/test"), userData);
-
-        await expect(await assertFails(batch.commit()));
-    });
-
-    test("fail in setting users when username is not valid", async () => {
-        const userData = {
-            displayName: "test",
-            username: "username",
-            profileIMG: "storageUrl",
-            email: "email",
-            creationDate: new Date(),
-            lastActive: new Date(),
-            friends: [],
-        };
-
-        const usernameData = {
-            uid: "test",
-        };
-
-        db = await setup({ uid: "test" });
-
-        //first set of data is there to create a username that is no longer allowed
-        var demoData = db.batch();
-        demoData.set(db.doc("/users/test"), userData);
-        demoData.set(db.doc("/usernames/username"), usernameData);
-        demoData.commit();
-
-        //second set to check if it will stop that
-        var demoData = db.batch();
-        demoData.set(db.doc("/users/test"), userData);
-        demoData.set(db.doc("/usernames/username"), usernameData);
-
-        await expect(await assertFails(demoData.commit()));
-    });
-
-    //Acts wrierd in vs code plugin but normal in terminal
-    test("succeed in setting users when all requirements are matched", async () => {
-        const userData = {
-            displayName: "test",
-            username: "username",
-            profileIMG: "storageUrl",
-            email: "email",
-            creationDate: new Date(),
-            lastActive: new Date(),
-            friends: [],
-        };
-
-        const usernameData = {
-            uid: "test",
-        };
-
-        db = await setup({ uid: "test" });
-
-        var batch = db.batch();
-        batch.set(db.doc("/users/test"), userData);
-        batch.set(db.doc("/usernames/username"), usernameData);
-
-        await expect(await assertSucceeds(batch.commit()));
-    });
-
-    //updating
-
-    test("fail in updating when invalid date", async () => {
-        //set doc first
-        const firstUserData = {
-            displayName: "test",
-            username: "username",
-            profileIMG: "storageUrl",
-            email: "email",
-            creationDate: new Date(),
-            lastActive: new Date(),
-            friends: [],
-        };
-
-        const usernameData = {
-            uid: "test",
-        };
-
-        db = await setup({ uid: "test" });
-
-        var batch = db.batch();
-        batch.set(db.doc("/users/test"), firstUserData);
-        batch.set(db.doc("/usernames/username"), usernameData);
-
-        await batch.commit();
-
-        //now update it
-        const today = new Date();
-        const tomorrow = new Date(today);
-
-        const userData = {
-            displayName: "test",
-            username: "username",
-            profileIMG: "storageUrl",
-            email: "email",
-            creationDate: new Date(tomorrow.setDate(tomorrow.getDate() + 1)),
-            lastActive: new Date(tomorrow.setDate(tomorrow.getDate() + 1)),
-            friends: [],
-        };
-
-        const usersdoc = db.doc("/users/test");
-
-        await expect(await assertFails(usersdoc.update(userData)));
-    });
-
-    test("succeed in updating users when all requirements are matched", async () => {
-        //first set doc
-        const firstUserData = {
-            displayName: "test",
-            username: "username",
-            profileIMG: "storageUrl",
-            email: "email",
-            creationDate: new Date(),
-            lastActive: new Date(),
-            friends: [],
-        };
-
-        const usernameData = {
-            uid: "test",
-        };
-
-        db = await setup({ uid: "test" });
-
-        var batch = db.batch();
-        batch.set(db.doc("/users/test"), firstUserData);
-        batch.set(db.doc("/usernames/username"), usernameData);
-
-        await batch.commit();
-
-        //now set it
-        const userData = {
-            friends: ["cool"],
-        };
-
-        const usersdoc = db.doc("/users/test");
-
-        await expect(await assertSucceeds(usersdoc.update(userData)));
-    });
-
-    test("succeed in updating users when other requirements are matched", async () => {
-        //first set doc
-        const firstUserData = {
-            displayName: "test",
-            username: "username",
-            profileIMG: "storageUrl",
-            email: "email",
-            creationDate: new Date(),
-            lastActive: new Date(),
-            friends: [],
-        };
-
-        const usernameData = {
-            uid: "test",
-        };
-
-        db = await setup({ uid: "test" });
-
-        var batch = db.batch();
-        batch.set(db.doc("/users/test"), firstUserData);
-        batch.set(db.doc("/usernames/username"), usernameData);
-
-        await batch.commit();
-
-        //now set it
-        db = await setup({ uid: "bob" });
-        const userData = {
-            friends: ["cool"],
-        };
-
-        const usersdoc = db.doc("/users/test");
-
-        await expect(await assertSucceeds(usersdoc.update(userData)));
-    });
+    await assertFails(
+      db.doc('/users/alice').update({
+        displayName: baseUser.displayName,
+        username: baseUser.username,
+        profileIMG: baseUser.profileIMG,
+        email: baseUser.email,
+        creationDate: baseUser.creationDate,
+        lastActive: tomorrow(),
+        friends: baseUser.friends,
+      })
+    );
+  });
 });

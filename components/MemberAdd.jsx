@@ -18,9 +18,8 @@ export function MemberAdd({ item, threadId, messageHandler, updateMembers }) {
   const { user, data } = useContext(UserContext);
 
   const addFriendSubmit = async (id) => {
-    await inviteFriend(id, user, data, threadId, messageHandler.thread.members)
-    messageHandler.setThread()
-    updateMembers(messageHandler.thread.members)
+    await inviteFriend(id, user, data, threadId, messageHandler)
+    updateMembers()
   }
 
   return (

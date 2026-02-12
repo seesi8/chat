@@ -23,6 +23,7 @@ export function Message({ message, messageHandler }) {
   }
   else if (message.type == MessageHandler.MESSAGETYPES.FILE) {
     const blobs = message.messages.map((file) => {
+      console.log(file)
       const blob = base64ToBlob(file.content, { type: file.type });
       file.blob = blob
       file.url = window.URL.createObjectURL(blob);

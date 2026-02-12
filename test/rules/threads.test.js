@@ -1,121 +1,99 @@
-const { setup, teardown } = require('./helpers');
 const { assertFails, assertSucceeds } = require('@firebase/testing');
-const { setDoc, doc } = require('firebase/firestore');
+const { setup, teardown } = require('./helpers');
+const { buildDmThread, tomorrow } = require('./fixtures');
 
-describe('testing threads rules', () => {
-    let db;
-    let threadsId;
-    let threadsDoc;
+describe('threads rules (direct messaging)', () => {
+  afterEach(async () => {
+    await teardown();
+  });
 
-    beforeAll(async () => {
-        //empty
-    });
+  test('denies reading threads when signed out', async () => {
+    const db = await setup();
+    await assertFails(db.collection('/threads').get());
+  });
 
-    afterEach(async () => {
-        await teardown();
-    });
+  test('denies reading thread when user is not a member', async () => {
+    const seed = {
+      '/threads/dm1': buildDmThread(['alice', 'bob']),
+    };
+    const db = await setup({ uid: 'mallory' }, seed);
 
+    await assertFails(db.doc('/threads/dm1').get());
+  });
 
-    //Reading
-    test('fail reading threads when not sighned in', async () => {
-        // Custom Matchers
-        db = await setup();
-        threadsId = db.collection('/threads');
-        await expect(await assertFails(threadsId.get()));
-    });
+  test('allows reading thread when user is a member', async () => {
+    const seed = {
+      '/threads/dm1': buildDmThread(['alice', 'bob']),
+    };
+    const db = await setup({ uid: 'alice' }, seed);
 
-    test('fail reading threads when not right user', async () => {
-        // Custom Matchers
+    await assertSucceeds(db.doc('/threads/dm1').get());
+  });
 
-        const threadData = {
-            "/threads/foo": {
-                members: ["foo"],
-                groupName: "test",
-                createdAt: new Date(),
-                latestMessage: new Date()
-            }
-        };
+  test('denies creating thread when auth user is not in members', async () => {
+    const db = await setup({ uid: 'mallory' });
+    await assertFails(db.doc('/threads/dm1').set(buildDmThread(['alice', 'bob'])));
+  });
 
-        db = await setup({ uid: "foo" }, threadData);
-        db = await setup({ uid: "test" });
-        threadsDoc = db.doc("/threads/foo");
-        await expect(await assertFails(threadsDoc.get()));
-    });
+  test('denies creating thread with future timestamps', async () => {
+    const db = await setup({ uid: 'alice' });
+    await assertFails(
+      db.doc('/threads/dm1').set(
+        buildDmThread(['alice', 'bob'], {
+          createdAt: tomorrow(),
+          latestMessage: tomorrow(),
+        })
+      )
+    );
+  });
 
-    // test('succeed reading threads when right user', async () => {
-    //     // Custom Matchers
+  test('denies creating thread missing required fields', async () => {
+    const db = await setup({ uid: 'alice' });
+    await assertFails(
+      db.doc('/threads/dm1').set({
+        members: ['alice', 'bob'],
+        createdAt: new Date(),
+        latestMessage: new Date(),
+      })
+    );
+  });
 
-    //     const threadData = {
-    //         "/threads/foo": {
-    //             members: ["foo"],
-    //             groupName: "test",
-    //             createdAt: new Date(),
-    //             latestMessage: new Date()
-    //         }
-    //     };
+  test('allows creating dm thread when required fields are valid', async () => {
+    const db = await setup({ uid: 'alice' });
+    await assertSucceeds(db.doc('/threads/dm1').set(buildDmThread(['alice', 'bob'])));
+  });
 
-    //     db = await setup({ uid: "foo" }, threadData);
-    //     threadsDoc = db.doc("/threads/foo");
-    //     await expect(await assertSucceeds(threadsDoc.get()));
-    // });
+  test('denies updating thread by non-member', async () => {
+    const seed = {
+      '/threads/dm1': buildDmThread(['alice', 'bob']),
+    };
+    const db = await setup({ uid: 'mallory' }, seed);
 
+    await assertFails(
+      db.doc('/threads/dm1').update({
+        members: ['alice', 'bob'],
+        groupName: 'Updated Name',
+        createdAt: seed['/threads/dm1'].createdAt,
+        latestMessage: new Date(),
+        dm: true,
+      })
+    );
+  });
 
-    //Writing
-    test('fail to set thread when not in members', async () => {
+  test('allows updating thread by member with valid payload', async () => {
+    const seed = {
+      '/threads/dm1': buildDmThread(['alice', 'bob']),
+    };
+    const db = await setup({ uid: 'alice' }, seed);
 
-        const threadData = {
-            members: ["test"],
-            groupName: "test",
-            createdAt: new Date(),
-            latestMessage: new Date()
-        };
-
-        db = await setup({ uid: "hi" });
-        await expect(await assertFails(db.doc("/threads/doc").set(threadData)));
-    });
-
-    test('fail to set thread when date is wrong', async () => {
-
-        const threadData = {
-            members: ["test"],
-            groupName: "test",
-            createdAt: new Date("10/10/2029"),
-            latestMessage: new Date("10/10/2029")
-        };
-
-        db = await setup({ uid: "test" });
-        await expect(await assertFails(db.doc("/threads/doc").set(threadData)));
-    });
-
-    test('fail to set thread when not have feilds', async () => {
-
-        const threadData = {
-            members: ["test"],
-            // missing feild: groupName: "test",
-            createdAt: new Date(),
-            latestMessage: new Date()
-        };
-
-        db = await setup({ uid: "test" });
-        await expect(await assertFails(db.doc("/threads/doc").set(threadData)));
-    });
-
-    test('succeed to set thread when requirements are satisfied', async () => {
-
-        const threadData = {
-            members: ["test"],
-            groupName: "test",
-            createdAt: new Date(),
-            latestMessage: new Date()
-        };
-
-        db = await setup({ uid: "test" });
-        await expect(await assertSucceeds(db.doc("/threads/doc").set(threadData)));
-    });
-
-
-
-    //updating
-    //Updating is not nessisary to be allowed but is becasue it presents no security risks as it has the same rules as writing
-
+    await assertSucceeds(
+      db.doc('/threads/dm1').update({
+        members: ['alice', 'bob'],
+        groupName: 'Updated Name',
+        createdAt: seed['/threads/dm1'].createdAt,
+        latestMessage: new Date(),
+        dm: true,
+      })
+    );
+  });
 });

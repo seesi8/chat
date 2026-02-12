@@ -1,50 +1,46 @@
-const { setup, teardown } = require("./helpers");
-const { assertFails, assertSucceeds } = require("@firebase/testing");
-const { setDoc, doc } = require("firebase/firestore");
+const { assertFails, assertSucceeds } = require('@firebase/testing');
+const { setup, teardown } = require('./helpers');
+const { buildRequest } = require('./fixtures');
 
-describe("testing threadId rules", () => {
-    let db;
-    let requests;
+describe('requests rules', () => {
+  afterEach(async () => {
+    await teardown();
+  });
 
-    beforeAll(async () => {
-        //empty
-    });
+  test('denies reading requests when signed out', async () => {
+    const db = await setup();
+    await assertFails(db.collection('/requests').get());
+  });
 
-    afterEach(async () => {
-        await teardown();
-    });
+  test('allows reading requests when signed in', async () => {
+    const db = await setup({ uid: 'alice' });
+    await assertSucceeds(db.collection('/requests').get());
+  });
 
-    //Reading
-    test("allow reading requests", async () => {
-        // Custom Matchers
-        db = await setup({ uid: "test" });
-        requests = db.collection("/requests");
-        await expect(await assertSucceeds(requests.get()));
-    });
+  test('allows creating request with required fields', async () => {
+    const db = await setup({ uid: 'alice' });
+    await assertSucceeds(
+      db.doc('/requests/fromalicetobob').set(buildRequest('alice', 'bob'))
+    );
+  });
 
-    test("fail reading requests when not signed in", async () => {
-        // Custom Matchers
-        db = await setup();
-        requests = db.collection("/requests");
-        await expect(await assertFails(requests.get()));
-    });
+  test('denies creating request without required fields', async () => {
+    const db = await setup({ uid: 'alice' });
+    await assertFails(db.doc('/requests/fromalicetobob').set({}));
+  });
 
-    //Writing
-    test("allow writing requests when have feilds", async () => {
-        // Custom Matchers
-        db = await setup({ uid: "test" });
-        requests = db.collection("/requests");
-        await expect(
-            await assertSucceeds(
-                requests.doc("test").set({ to: "john", from: "doe" })
-            )
-        );
-    });
+  test('allows updating request when required fields are still present', async () => {
+    const seed = {
+      '/requests/fromalicetobob': buildRequest('alice', 'bob'),
+    };
+    const db = await setup({ uid: 'alice' }, seed);
 
-    test("fail reading requests when not signed in", async () => {
-        // Custom Matchers
-        db = await setup({ uid: "test" });
-        requests = db.collection("/requests");
-        await expect(await assertFails(requests.doc("test").set({})));
-    });
+    await assertSucceeds(
+      db.doc('/requests/fromalicetobob').update({
+        from: 'alice',
+        to: 'bob',
+        members: ['alice', 'bob'],
+      })
+    );
+  });
 });

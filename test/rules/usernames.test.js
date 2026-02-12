@@ -1,78 +1,44 @@
-const { setup, teardown } = require('./helpers');
 const { assertFails, assertSucceeds } = require('@firebase/testing');
+const { setup, teardown } = require('./helpers');
+const { buildUser, buildUsername } = require('./fixtures');
 
-describe('testing usernamse rules', () => {
-    let db;
-    let usernames;
+describe('usernames rules', () => {
+  afterEach(async () => {
+    await teardown();
+  });
 
-    beforeAll(async () => {
-        //empty
-    });
+  test('allows reading usernames while signed out', async () => {
+    const db = await setup();
+    await assertSucceeds(db.collection('/usernames').get());
+  });
 
-    afterEach(async () => {
-        await teardown();
-    });
+  test('allows creating username when coupled to same authenticated user', async () => {
+    const db = await setup({ uid: 'alice' });
 
+    const batch = db.batch();
+    batch.set(db.doc('/users/alice'), buildUser('alice', { username: 'alice' }));
+    batch.set(db.doc('/usernames/alice'), buildUsername('alice'));
 
-    //Reading
+    await assertSucceeds(batch.commit());
+  });
 
+  test('denies creating username when uid does not match auth uid', async () => {
+    const db = await setup({ uid: 'alice' });
 
-    test('succeed reading usernames', async () => {
-        db = await setup({ uid: "foo" });
-        usernames = db.collection("/usernames");
-        await expect(await assertSucceeds(usernames.get()));
-    });
+    const batch = db.batch();
+    batch.set(db.doc('/users/alice'), buildUser('alice', { username: 'alice' }));
+    batch.set(db.doc('/usernames/alice'), buildUsername('bob'));
 
+    await assertFails(batch.commit());
+  });
 
-    //Writing
+  test('denies creating username when resulting user doc username mismatches doc id', async () => {
+    const db = await setup({ uid: 'alice' });
 
-    test('fail in setting usernames when not signed in as right user', async () => {
+    const batch = db.batch();
+    batch.set(db.doc('/users/alice'), buildUser('alice', { username: 'not-alice' }));
+    batch.set(db.doc('/usernames/alice'), buildUsername('alice'));
 
-        const userData = {
-            displayName: "test",
-            username: "username",
-            profileIMG: "storageUrl",
-            email: "email",
-            creationDate: new Date(),
-            lastActive: new Date(),
-            friends: []
-        };
-
-        const usernameData = {
-            uid: "foo"
-        };
-
-        db = await setup({ uid: "test" });
-
-        var batch = db.batch();
-        batch.set(db.doc("/users/test"), userData);
-        batch.set(db.doc("/usernames/username"), usernameData);
-
-        await expect(await assertFails(batch.commit()));
-    });
-
-    test('succeed in setting usernames when all requirements are matched', async () => {
-
-        const userData = {
-            displayName: "test",
-            username: "username",
-            profileIMG: "storageUrl",
-            email: "email",
-            creationDate: new Date(),
-            lastActive: new Date(),
-            friends: []
-        };
-
-        const usernameData = {
-            uid: "test"
-        };
-
-        db = await setup({ uid: "test" });
-
-        var batch = db.batch();
-        batch.set(db.doc("/users/test"), userData);
-        batch.set(db.doc("/usernames/username"), usernameData);
-
-        await expect(await assertSucceeds(batch.commit()));
-    });
+    await assertFails(batch.commit());
+  });
 });

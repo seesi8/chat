@@ -1,166 +1,70 @@
-const { setup, teardown } = require('./helpers');
 const { assertFails, assertSucceeds } = require('@firebase/testing');
+const { setup, teardown } = require('./helpers');
+const { buildDmThread, buildDmMessage, tomorrow } = require('./fixtures');
 
-describe('testing messages rules', () => {
-    let db;
-    let messages;
+describe('messages rules (direct messaging)', () => {
+  afterEach(async () => {
+    await teardown();
+  });
 
-    beforeAll(async () => {
-        //empty
-    });
+  test('denies reading messages when signed out', async () => {
+    const db = await setup();
+    await assertFails(db.collection('/threads/dm1/messages').get());
+  });
 
-    afterEach(async () => {
-        await teardown();
-    });
+  test('denies reading messages when user is not a thread member', async () => {
+    const seed = {
+      '/threads/dm1': buildDmThread(['alice', 'bob']),
+      '/threads/dm1/messages/m1': buildDmMessage('alice'),
+    };
+    const db = await setup({ uid: 'mallory' }, seed);
 
+    await assertFails(db.doc('/threads/dm1/messages/m1').get());
+  });
 
-    //Reading
-    test('fail to read message when unauthorised', async () => {
-        // Custom Matchers
-        db = await setup();
-        messages = db.collection('/threads/thing/messages/');
-        await expect(await assertFails(messages.get()));
-    });
+  test('allows reading messages when user is a thread member', async () => {
+    const seed = {
+      '/threads/dm1': buildDmThread(['alice', 'bob']),
+      '/threads/dm1/messages/m1': buildDmMessage('alice'),
+    };
+    const db = await setup({ uid: 'alice' }, seed);
 
-    test('fail to read message when not in members', async () => {
-        // Custom Matchers
-        const data = {
-            '/threads/doc/messages/unqiuedoc': {
-                message: "test",
-                timeSent: new Date(),
-                sentBy: {
-                    user: "test"
-                }
-            },
-        };
-        db = await setup({ uid: "test" }, data);
-        messages = db.doc('/threads/thing/messages/unqiuedoc');
-        await expect(await assertFails(messages.get()));
-    });
+    await assertSucceeds(db.doc('/threads/dm1/messages/m1').get());
+  });
 
-    //exculed becasuse it keeps throughing errors roughly one in every 7 times ↓
+  test('denies creating message when signed out', async () => {
+    const db = await setup();
+    await assertFails(db.doc('/threads/dm1/messages/m1').set(buildDmMessage('alice')));
+  });
 
+  test('denies creating message with missing fields', async () => {
+    const db = await setup({ uid: 'alice' });
+    await assertFails(
+      db.doc('/threads/dm1/messages/m1').set({
+        message: 'hello',
+        timeSent: new Date(),
+      })
+    );
+  });
 
-    // test('succeed reading messages when criteria is matched', async () => {
-    //     const threadData = {
-    //         members: ["test"],
-    //         groupName: "test",
-    //         createdAt: new Date(),
-    //         latestMessage: new Date()
-    //     };
-    //     const messageData = {
-    //         message: "test",
-    //         timeSent: new Date(),
-    //         sentBy: {
-    //             user: "test"
-    //         }
-    //     };
-    //     db = await setup({ uid: "test" });
+  test('denies creating message when sender does not match auth user', async () => {
+    const db = await setup({ uid: 'alice' });
+    await assertFails(db.doc('/threads/dm1/messages/m1').set(buildDmMessage('bob')));
+  });
 
-    //     // Set broken out because it fails when put in helper
+  test('denies creating message with non-current day timestamp', async () => {
+    const db = await setup({ uid: 'alice' });
+    await assertFails(
+      db.doc('/threads/dm1/messages/m1').set(
+        buildDmMessage('alice', {
+          timeSent: tomorrow(),
+        })
+      )
+    );
+  });
 
-    //     //sometimes still occasionaly fails
-    //     let message = db.doc('/threads/doc/messages/thing');
-    //     let thread = db.doc('/threads/doc');
-    //     await message.set(messageData);
-    //     await thread.set(threadData);
-    //     await expect(await assertSucceeds(message.get()));
-    // });
-
-    //Writing
-    test('fail to set message when they dont have feilds', async () => {
-        // Custom Matchers
-        const data = {
-            '/threads/doc': {
-                members: ["test"],
-                groupName: "test",
-                createdAt: new Date(),
-                latestMessage: new Date()
-            },
-        };
-
-        const messageData = {
-            timeSent: new Date(),
-            sentBy: {
-                user: "bob"
-            }
-        };
-        db = await setup({ uid: "test" }, data);
-        let message = db.doc('/threads/doc/messages/thing');
-        await expect(await assertFails(message.set(messageData)));
-    });
-
-    test('fail to set message when wrong date', async () => {
-        // Custom Matchers
-        const data = {
-            '/threads/doc': {
-                members: ["test"],
-                groupName: "test",
-                createdAt: new Date(),
-                latestMessage: new Date()
-            },
-        };
-
-        const messageData = {
-            message: "test",
-            timeSent: new Date("2/29/2024"),
-            sentBy: {
-                user: "test"
-            }
-        };
-        db = await setup({ uid: "test" }, data);
-        let message = db.doc('/threads/doc/messages/thing');
-        await expect(await assertFails(message.set(messageData)));
-    });
-
-
-    test('fail to set message when not sent by the right user', async () => {
-        // Custom Matchers
-        const data = {
-            '/threads/doc': {
-                members: ["test"],
-                groupName: "test",
-                createdAt: new Date(),
-                latestMessage: new Date()
-            },
-        };
-
-        const messageData = {
-            message: "test",
-            timeSent: new Date(),
-            sentBy: {
-                user: "bob"
-            }
-        };
-        db = await setup({ uid: "test" }, data);
-        let message = db.doc('/threads/doc/messages/thing');
-        await expect(await assertFails(message.set(messageData)));
-    });
-
-    test('succeed to set message when criteria is matched', async () => {
-        // Custom Matchers
-        const data = {
-            '/threads/doc': {
-                members: ["test"],
-                groupName: "test",
-                createdAt: new Date(),
-                latestMessage: new Date()
-            },
-        };
-
-        const messageData = {
-            message: "test",
-            timeSent: new Date(),
-            sentBy: {
-                user: "test"
-            }
-        };
-        db = await setup({ uid: "test" }, data);
-        let message = db.doc('/threads/doc/messages/thing');
-        await expect(await assertSucceeds(message.set(messageData)));
-    });
-
-    //updating
-    //same as above
-
+  test('allows creating message with valid payload', async () => {
+    const db = await setup({ uid: 'alice' });
+    await assertSucceeds(db.doc('/threads/dm1/messages/m1').set(buildDmMessage('alice')));
+  });
 });

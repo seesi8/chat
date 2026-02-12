@@ -1,5 +1,5 @@
 import { uuidv4 } from "@firebase/util";
-import { b64, checkKeySignature, decryptMLS, decryptWithPrivateKey, deleteKey, encryptMLS, generateAndStoreHPKEKeypair, generateAndStoreX25519Keypair, generateX25519Keypair, getOPK, getStoredKey, getStoredMessage, getStoredMetadata, hkdfExpand, hkdfExpandWithLabels, hkdfExpandWithSalt, importEd25519PublicRaw, importHKDFKey, importMK, importX25519PublicRaw, sha256Bytes, sign, storeHeader, storeKey, storeMessage, storeMetadata, td, te, ub64, verify, xorBytes } from "./e2ee/e2ee";
+import { b64, checkKeySignature, decryptMLS, decryptWithPrivateKey, deleteKey, encryptMLS, generateAndStoreHPKEKeypair, generateAndStoreX25519Keypair, generateX25519Keypair, getOPK, getStoredFile, getStoredKey, getStoredMessage, getStoredMetadata, hkdfExpand, hkdfExpandWithLabels, hkdfExpandWithSalt, importEd25519PublicRaw, importHKDFKey, importMK, importX25519PublicRaw, sha256Bytes, sign, storeFile, storeHeader, storeKey, storeMessage, storeMetadata, td, te, ub64, verify, xorBytes } from "./e2ee/e2ee";
 import { setDoc, doc, writeBatch, getDoc, query, getDocs, collection, where, limitToLast, limit, updateDoc, QuerySnapshot } from "firebase/firestore";
 import { firestore } from "./firebase"
 import { MessageHandler } from "./MessageHandler";
@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { DocumentData } from "firebase-admin/firestore";
 import { KEMTree } from "./KEMTree";
 import { SecretTree, SecretTreeRoot } from "./SecretTree";
+import { compressImage, deleteStorage, downloadText, formatDate, readFileBytes, stableStringify, uploadText, withinDistance } from "./functions";
 
 type MessageType = typeof MessageHandler.MESSAGETYPES[keyof typeof MessageHandler.MESSAGETYPES];
 
@@ -95,7 +96,7 @@ export class GroupMessageHandler {
 
         const tree = await kemTree.exportJson()
 
-        const treeHash = await sha256Bytes(te.encode(JSON.stringify(tree)))
+        const treeHash = await sha256Bytes(te.encode(stableStringify(tree)))
 
         let threadState = {
             threadId: this.threadId,
@@ -115,13 +116,14 @@ export class GroupMessageHandler {
         this.thread = threadState;
 
         await storeMetadata(0, `n_${0}_${this.threadId}`)
+        await storeMetadata(0, `epochJoined_${this.threadId}`)
 
         return threadState
     }
 
-    async createThread(groupName: string) {
+    async createThread(members: any[], groupName: string) {
         const publicThreadState = await this.initializeThreadState(groupName)
-        
+
         const batch = writeBatch(firestore);
         batch.set(doc(firestore, "threads", this.threadId), publicThreadState)
         batch.set(doc(firestore, "threadsId", publicThreadState.threadId), {
@@ -129,12 +131,120 @@ export class GroupMessageHandler {
             members: [this.user.uid],
         });
         await batch.commit()
+
+        const otherMembers = members.filter((item) => item.uid != this.user.uid)
+
+        for (let otherMember of otherMembers) {
+            this.addUser(otherMember.uid)
+        }
+
         return true;
     }
 
-    async submitMessage(files: Array<Blob>, message: string, setLoading: (value: SetStateAction<boolean>) => void) {
-        await this.sendMessage(te.encode(message), MessageHandler.MESSAGETYPES.TEXT)
-        setLoading(false)
+
+    async sendFile(fileBytes: Uint8Array, type: MessageType, options: any = {}) {
+        const KEMTreeNode = this.kemTree.root.findUser(this.user.uid)
+        const SecretTreeNode = this.secretTree.root.findIndex(KEMTreeNode.index)
+        let messageSecrets = options?.messageSecrets ?? null
+
+        if (messageSecrets == null) {
+            messageSecrets = await SecretTreeNode.getSendingKey()
+        }
+        const { ciphertext } = await encryptMLS(messageSecrets.sendingKey, messageSecrets.nonce, fileBytes, `${this.user.uid}`)
+
+        const n = messageSecrets.n
+
+        const header = {
+            from: this.user.uid,
+            reuseGuard: messageSecrets.reuseGuard,
+            n,
+            type,
+            epoch: this.kemTree.root.epoch
+        }
+
+        const timeSent = options?.timeSent ?? new Date()
+
+
+        let message = {
+            header, ciphertext, signature: null, timeSent: timeSent
+        }
+
+        console.log(stableStringify({ ...message, timeSent: timeSent.getTime() }))
+
+        const signature = await sign(this.data.privateSK, te.encode(stableStringify({ ...message, timeSent: timeSent.getTime() })))
+
+        message.signature = b64(signature)
+
+        const messageId = uuidv4()
+
+        await storeFile(this.threadId, messageId, td.decode(fileBytes))
+
+        const storageUrl = await uploadText(message.ciphertext, messageId)
+
+        message.ciphertext = storageUrl
+
+        await this.uploadMessage(message, messageId, options)
+    }
+
+
+    async submitMessage(files: Array<File>, message: string, setLoading: (value: SetStateAction<boolean>) => void) {
+
+        try {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i]
+                let compressed;
+                const image = file.type.includes("image");
+                if (image) {
+                    compressed = await compressImage(file)
+                }
+                else {
+                    compressed = file
+                }
+                const fileByteArray = await readFileBytes(compressed)
+                const text = b64(fileByteArray)
+                if (compressed.size > 5e+8) {
+                    toast.error("File uploads over 500mb are not permitted")
+                    continue;
+                }
+                if (image) {
+                    await this.sendFile(te.encode(text), MessageHandler.MESSAGETYPES.IMAGE)
+                }
+                else {
+
+                    const info = {
+                        "type": file.type,
+                        "name": file.name,
+                        "size": file.size,
+                        "content": text
+                    }
+                    await this.sendFile(te.encode(stableStringify(info)), MessageHandler.MESSAGETYPES.FILE)
+                }
+            }
+            if (message) {
+
+                const messageBytes = te.encode(message)
+                const messageSize = messageBytes.length
+                if (messageSize > 2000) {
+                    const b64Content = b64(messageBytes)
+                    const info = {
+                        "type": "text/plain",
+                        "name": `${this.data.username}'s Message.txt`,
+                        "size": messageSize,
+                        "content": b64Content
+                    }
+
+                    await this.sendFile(te.encode(stableStringify(info)), MessageHandler.MESSAGETYPES.FILE)
+                }
+                else {
+                    await this.sendMessage(te.encode(message), MessageHandler.MESSAGETYPES.TEXT)
+                }
+            }
+        }
+        catch (e) {
+            throw e
+        } finally {
+            setLoading(false)
+        }
     }
 
     async addUser(id: string) {
@@ -159,7 +269,7 @@ export class GroupMessageHandler {
 
         const ikRaw = ub64(keyPackage.credential.identityKey)
         const publicKey = await importEd25519PublicRaw(ikRaw)
-        const data = te.encode(JSON.stringify(keyPackage))
+        const data = te.encode(stableStringify(keyPackage))
         const verified = await checkKeySignature(publicKey, data, ub64(signature).buffer)
 
         if (!verified) {
@@ -171,46 +281,51 @@ export class GroupMessageHandler {
         this.secretTree.root = await SecretTreeRoot.rebuildTree(this.kemTree.root)
         const tree = await this.kemTree.exportJson()
 
-        const treeHash = await sha256Bytes(te.encode(JSON.stringify(tree)))
-        
+        const treeHash = await sha256Bytes(te.encode(stableStringify(tree)))
+
         const threadState = {
             ratchetTree: tree,
             treeHash: b64(treeHash),
             members: [...this.thread.members, id]
         }
-        
-        await this.sendMessageUnencrypted(te.encode(JSON.stringify({init_id: keyPackageDoc.id, init_secret: b64(this.kemTree.root.initSecret)})), MessageHandler.MESSAGETYPES.UNENCRYPTED_ADDITION)
+
+        await this.sendMessageUnencrypted(te.encode(stableStringify({ epoch: this.kemTree.root.epoch + 1, init_id: keyPackageDoc.id, init_secret: b64(this.kemTree.root.initSecret) })), MessageHandler.MESSAGETYPES.UNENCRYPTED_ADDITION)
         await updateDoc(doc(firestore, "threads", this.threadId), threadState)
         await this.startUpdate(false)
+        await this.setThread();
+        await this.setTrees();
     }
 
-    async sendMessage(messageBytes: Uint8Array, type: MessageType, messageSecrets: {
-        nonce: Uint8Array<ArrayBuffer>;
-        reuseGuard: string;
-        sendingKey: CryptoKey;
-    } | null = null) {
+    async sendMessage(messageBytes: Uint8Array, type: MessageType, options: any = {}) {
         const KEMTreeNode = this.kemTree.root.findUser(this.user.uid)
         const SecretTreeNode = this.secretTree.root.findIndex(KEMTreeNode.index)
+        let messageSecrets = options?.messageSecrets ?? null
+
         if (messageSecrets == null) {
             messageSecrets = await SecretTreeNode.getSendingKey()
         }
         const { ciphertext } = await encryptMLS(messageSecrets.sendingKey, messageSecrets.nonce, messageBytes, `${this.user.uid}`)
 
-        const n = (await getStoredMetadata(`n_${KEMTreeNode.epoch}_${this.threadId}`)) ?? 0
-        await storeMetadata(n + 1, `n_${KEMTreeNode.epoch}_${this.threadId}`)
+        const n = messageSecrets.n
 
         const header = {
             from: this.user.uid,
             reuseGuard: messageSecrets.reuseGuard,
             n,
             type,
+            epoch: this.kemTree.root.epoch
         }
+
+        const timeSent = options?.timeSent ?? new Date()
+
 
         let message = {
-            header, ciphertext, signature: null, timeSent: new Date()
+            header, ciphertext, signature: null, timeSent: timeSent
         }
 
-        const signature = await sign(this.data.privateSK, te.encode(JSON.stringify(message)))
+        console.log(stableStringify({ ...message, timeSent: timeSent.getTime() }))
+
+        const signature = await sign(this.data.privateSK, te.encode(stableStringify({ ...message, timeSent: timeSent.getTime() })))
 
         message.signature = b64(signature)
 
@@ -218,10 +333,10 @@ export class GroupMessageHandler {
 
         await storeMessage(this.threadId, messageId, td.decode(messageBytes))
 
-        await this.uploadMessage(message, messageId)
+        await this.uploadMessage(message, messageId, options)
     }
 
-    async sendMessageUnencrypted(messageBytes: Uint8Array, type: MessageType) {
+    async sendMessageUnencrypted(messageBytes: Uint8Array, type: MessageType, options: any = {}) {
         const KEMTreeNode = this.kemTree.root.findUser(this.user.uid)
 
         const n = (await getStoredMetadata(`n_${KEMTreeNode.epoch}_${this.threadId}`)) ?? 0
@@ -231,12 +346,15 @@ export class GroupMessageHandler {
             from: this.user.uid,
             n,
             type,
+            epoch: this.kemTree.root.epoch
         }
 
+        const timeSent = options?.timeSent ?? new Date()
+
         let message = {
-            header, plaintext: b64(messageBytes), signature: null, timeSent: new Date()
+            header, plaintext: b64(messageBytes), signature: null, timeSent: timeSent
         }
-        const signature = await sign(this.data.privateSK, te.encode(JSON.stringify(message)))
+        const signature = await sign(this.data.privateSK, te.encode(stableStringify({ ...message, timeSent: timeSent.getTime() })))
 
         message.signature = b64(signature)
 
@@ -244,11 +362,11 @@ export class GroupMessageHandler {
 
         await storeMessage(this.threadId, messageId, td.decode(messageBytes))
 
-        await this.uploadMessage(message, messageId)
+        await this.uploadMessage(message, messageId, options)
     }
 
 
-    async uploadMessage(message: any, messageId: string) {
+    async uploadMessage(message: any, messageId: string, options: any = {}) {
         const batch = writeBatch(firestore)
 
         batch.update(doc(
@@ -264,70 +382,206 @@ export class GroupMessageHandler {
         await batch.commit()
     }
 
-    async decryptMessage(message: any) {
+    async decryptMessage(message: any, fromUser: any) {
         const header = message.header
         const signature = message.signature
         const ciphertext = message.ciphertext
         const from = header.from
         const type = header.type
+        let storedMessage: any;
 
-        const storedMessage = await getStoredMessage(this.threadId, message.id)
-
-        if (storedMessage) {
-            return { ...message, plaintext: storedMessage, already: true }
+        if(MessageHandler.isFileType(type)){
+            storedMessage = await getStoredFile(this.threadId, message.id)
+        }
+        else{
+            storedMessage = await getStoredMessage(this.threadId, message.id)
         }
 
-        const fromUser = (await getDoc(doc(firestore, "users", from))).data()
-        const fromPublicKey = await importEd25519PublicRaw(ub64(fromUser.publicKeySK))
+        if (storedMessage !== undefined) {
+            return { plaintext: storedMessage, already: true }
+        }
 
-        const verified = await verify(fromPublicKey, te.encode(JSON.stringify({
-            header, ciphertext, signature: null
-        })), ub64(signature))
+        const fromPublicKey = await importEd25519PublicRaw(ub64(fromUser.publicKeySK))
+        const { id: _id, read: _read, ...stableMessage } = { ...message, signature: null, timeSent: message.timeSent.toDate().getTime() }
+        console.log(stableStringify(stableMessage))
+        const verified = await verify(fromPublicKey, te.encode(stableStringify(stableMessage)), ub64(signature))
 
 
         if (!verified) {
-            // throw Error("Invalid Identity Key")
+            // console.warn("Invalid Identity Key")
+            throw Error("Invalid Identity Key")
         }
 
-        
         if (MessageHandler.isUnencryptedType(type)) {
-            return { ...message, plaintext: td.decode(ub64(message.plaintext)) }
+            const plaintext = td.decode(ub64(message.plaintext))
+            await storeMessage(this.threadId, message.id, plaintext)
+            return { plaintext, already: false }
         }
-        
-        
-        
+
         const KEMTreeNode = this.kemTree.root.findUser(from)
-        
+
         const SecretTreeNode = this.secretTree.root.findIndex(KEMTreeNode.index)
+
+        const messageSecrets = await SecretTreeNode.getReceivingKey(ub64(header.reuseGuard), header.n)
+
+        const { plaintext } = await decryptMLS(messageSecrets.receivingKey, messageSecrets.nonce, ub64(ciphertext), from)
         
-        const messageSecrets = await SecretTreeNode.getReceivingKey(ub64(header.reuseGuard))
-        
-        const { plaintext } = await decryptMLS(messageSecrets.receivingKey, messageSecrets.nonce, ub64(message.ciphertext))
-        await storeMessage(this.threadId, message.id, plaintext)
-        return { ...message, plaintext, already: false }
+        if(MessageHandler.isFileType(type)){
+            await storeFile(this.threadId, message.id, plaintext)
+        }
+        else{
+            await storeMessage(this.threadId, message.id, plaintext)
+        }
+        return { plaintext: plaintext, already: false }
     }
 
-    async handleMessage(message: any): Promise<any> {
-        const decryptedMessage = await this.decryptMessage(message)
+    async handleMessage(message: any, users: any, currentMessages: any[] = [], finalMessages: any[] = []): Promise<any> {
         const type = message.header.type
 
-        if (!decryptedMessage) return;
+        const epochJoined = await getStoredMetadata(`epochJoined_${this.threadId}`)
+        if ((epochJoined == undefined || epochJoined == null || epochJoined > message.header.epoch) && !MessageHandler.isUnencryptedType(type)) {
 
+
+            return;
+        }
+
+        const from = message.header.from
+
+        let fromUser = users.find((a: any) => a.id == from)
+
+        if(MessageHandler.isFileType(type)){
+            message.ciphertext = await downloadText(message.ciphertext)
+        }
+
+        const decryptedMessage = await this.decryptMessage(message, fromUser)
+
+        message.type = type
+        message.sentBy = fromUser
+
+        if (!decryptedMessage) return;
 
         if (type == MessageHandler.MESSAGETYPES.UNENCRYPTED_ADDITION && !decryptedMessage.already) {
             const node = this.kemTree.root.findUser(this.user.uid)
             const data = JSON.parse(decryptedMessage.plaintext)
+            await storeMetadata(data["epoch"], `epochJoined_${this.threadId}`)
             const privateKey = await getOPK(`${data["init_id"]}_init_key`)
             this.kemTree.root.initSecret = ub64(data["init_secret"])
             node.setPrivateKey(privateKey)
-            
+
         }
         if ((type == MessageHandler.MESSAGETYPES.UPDATE || type == MessageHandler.MESSAGETYPES.UNENCRYPTED_UPDATE) && !decryptedMessage.already) {
-            
+
+            console.log(decryptedMessage, message.header.from)
 
             const updatePayload = JSON.parse(decryptedMessage.plaintext)
             await this.receiveUpdate(updatePayload)
         }
+
+
+        if (message.type === MessageHandler.MESSAGETYPES.READ) {
+
+            if (message.sentBy.id !== this.user.uid) {
+
+
+                const decryptedMessageObj = JSON.parse(decryptedMessage.plaintext);
+                const finalIndex = finalMessages.findIndex(m => m.id === decryptedMessageObj["id"]);
+                const currentIndex = currentMessages.findIndex(m => m.id === decryptedMessageObj["id"]);
+
+                const timeRead = formatDate(new Date(decryptedMessageObj["timeRead"]));
+
+                if (finalIndex !== -1) {
+                    finalMessages[finalIndex].read = true;
+                    finalMessages[finalIndex].timeRead = timeRead;
+                }
+                else if (currentIndex !== -1) {
+                    currentMessages[currentIndex].read = true;
+                    currentMessages[currentIndex].timeRead = timeRead;
+                }
+            }
+
+            return null;
+        }
+
+        if (MessageHandler.isTextType(message.type) || MessageHandler.isFileType(message.type)) {
+            message.message = decryptedMessage.plaintext;
+        }
+
+
+        if (!decryptedMessage.already && (type != MessageHandler.MESSAGETYPES.READ) && MessageHandler.isGroupableType(type)) {
+            const readData = {
+                id: message.id,
+                timeRead: (new Date()).getTime(),
+            }
+
+            await this.sendMessage(te.encode(JSON.stringify(readData)), MessageHandler.MESSAGETYPES.READ, { timeSent: new Date(message.timeSent.toDate()) });
+        }
+
+        else if (type === MessageHandler.MESSAGETYPES.IMAGE) {
+            if (!decryptedMessage.already) await deleteStorage(message.id);
+        }
+
+        else if (type === MessageHandler.MESSAGETYPES.FILE) {
+            if (!decryptedMessage.already) await deleteStorage(message.id);
+            message.message = JSON.parse(message.message);
+        }
+
+        message.timeSentFormated = formatDate(
+            message.timeSent.toDate()
+        );
+
+        console.log(message)
+
+        return message
+    }
+
+    groupMessages(messages: any[]) {
+        let lastCallMessage = messages.filter(m => MessageHandler.isCallType(m.type)).at(-1);
+        let groupedMessages = [];
+        for (let i = 0; i < messages.length; i++) {
+            if (i == 0) {
+                const output = {
+                    id: messages[i].id,
+                    messages: [messages[i].message],
+                    timeSentFormated: messages[i].timeSentFormated,
+                    timeSent: messages[i].timeSent,
+                    read: messages[i].read,
+                    timeRead: messages[i].timeRead,
+                    sentBy: messages[i].sentBy,
+                    type: messages[i].type,
+                    callOpen: false,
+                }
+                if (lastCallMessage && messages[i].id == lastCallMessage.id) {
+                    output.callOpen = true;
+                }
+                groupedMessages.push(output);
+                continue
+            }
+
+            if (messages[i].sentBy.id == groupedMessages[groupedMessages.length - 1].sentBy.id && messages[i].type == groupedMessages[groupedMessages.length - 1].type && messages[i].read == groupedMessages[groupedMessages.length - 1].read && withinDistance(messages[i].timeSent, groupedMessages[groupedMessages.length - 1].timeSent) && MessageHandler.isGroupableType(messages[i].type)) {
+                groupedMessages[groupedMessages.length - 1].messages.push(messages[i].message);
+                groupedMessages[groupedMessages.length - 1].timeRead = messages[i].timeRead;
+                groupedMessages[groupedMessages.length - 1].read = messages[i].read;
+            }
+            else {
+                const output = {
+                    id: messages[i].id,
+                    messages: [messages[i].message],
+                    timeSentFormated: messages[i].timeSentFormated,
+                    timeSent: messages[i].timeSent,
+                    read: messages[i].read,
+                    timeRead: messages[i].timeRead,
+                    sentBy: messages[i].sentBy,
+                    type: messages[i].type,
+                    callOpen: false,
+                }
+                if (lastCallMessage && messages[i].id == lastCallMessage.id) {
+                    output.callOpen = true;
+                }
+                groupedMessages.push(output);
+                continue
+            }
+        }
+        return groupedMessages;
     }
 
     async receiveUpdate(updatePayload: {
@@ -347,17 +601,19 @@ export class GroupMessageHandler {
         for (let indexStr in updatePath) {
             const index = parseInt(indexStr)
             const kemTreeNode = this.kemTree.root.findIndex(index)
-            
+            console.log(updatePath[indexStr])
+
+
             if (kemTreeNode.findUser(this.user.uid) == null) continue;
             const decryptedPayload: {
                 nextPathKey: Uint8Array<ArrayBuffer>;
                 publicKey: string;
-            } = JSON.parse(td.decode(await decryptWithPrivateKey(kemTreeNode.privateKey, updatePath[indexStr])))
-            
+            } = JSON.parse(td.decode(await decryptWithPrivateKey(await kemTreeNode.getPrivateKey(), updatePath[indexStr])))
+            console.log(decryptedPayload)
             const sibilingPublicKey = await importX25519PublicRaw(ub64(decryptedPayload.publicKey))
             kemTreeNode.getSibiling().publicKey = sibilingPublicKey
-            console.log("dpc", ub64(decryptedPayload.nextPathKey))
-            kemTreeNode.parent.workUpPath(ub64(decryptedPayload.nextPathKey))
+
+            await kemTreeNode.parent.workUpPath(ub64(decryptedPayload.nextPathKey), {}, epoch)
         }
 
         this.secretTree.root = await SecretTreeRoot.rebuildTree(this.kemTree.root)
@@ -365,13 +621,13 @@ export class GroupMessageHandler {
 
     async startUpdate(encrytped = true) {
         const KEMTreeNode = this.kemTree.root.findUser(this.user.uid)
-        
+
         const updatePayload = await this.kemTree.getUpdatePayload(KEMTreeNode.index)
         this.secretTree.root = await SecretTreeRoot.rebuildTree(this.kemTree.root)
 
         const tree = await this.kemTree.exportJson()
 
-        const treeHash = await sha256Bytes(te.encode(JSON.stringify(tree)))
+        const treeHash = await sha256Bytes(te.encode(stableStringify(tree)))
 
         const threadState = {
             ratchetTree: tree,
@@ -383,31 +639,41 @@ export class GroupMessageHandler {
         if (encrytped) {
             const SecretTreeNode = this.secretTree.root.findIndex(KEMTreeNode.index)
             const sendingKeys = await SecretTreeNode.getSendingKey()
-            await this.sendMessage(te.encode(JSON.stringify(updatePayload)), MessageHandler.MESSAGETYPES.UPDATE, sendingKeys)
+            await this.sendMessage(te.encode(stableStringify(updatePayload)), MessageHandler.MESSAGETYPES.UPDATE, { messageSecrets: sendingKeys })
         }
         else {
-            
-            await this.sendMessageUnencrypted(te.encode(JSON.stringify(updatePayload)), MessageHandler.MESSAGETYPES.UNENCRYPTED_UPDATE)
+
+            await this.sendMessageUnencrypted(te.encode(stableStringify(updatePayload)), MessageHandler.MESSAGETYPES.UNENCRYPTED_UPDATE)
         }
     }
 
     async decryptMessages(messagesValue: QuerySnapshot<DocumentData>) {
         const decryptedMessages = []
-        for (let doc of messagesValue.docs) {
-            const id = doc.id
-            let data = doc.data()
-            data.id = id;
-            const decrypted = await this.handleMessage(data)
+        const currentMessages = messagesValue.docs.map((docSnap) => ({
+            ...docSnap.data(),
+            id: docSnap.id,
+            read: false
+        }));
+
+        const members = await Promise.all(this.thread.members.map(async (member) => {
+            let user = (await getDoc(doc(firestore, "users", member))).data()
+            user.id = member
+            return user
+        }))
+
+
+
+        for (let data of currentMessages) {
+            const decrypted = await this.handleMessage(data, members, currentMessages, decryptedMessages)
             if (decrypted) {
                 decryptedMessages.push(decrypted)
             }
         }
-        return decryptedMessages
+        return this.groupMessages(decryptedMessages)
     }
 
     async test() {
-        
-        
-        // await this.startUpdate(false)
+
+        await this.startUpdate(false)
     }
 }

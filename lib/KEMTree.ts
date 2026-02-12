@@ -1,5 +1,5 @@
 import { b64, deleteKey, deriveX25519Keypair, encryptMLS, encryptWithPublicKey, exportKey, getStoredKey, hkdfExpandWithLabels, importHKDFKeyRaw, importX25519PublicRaw, sha256Bytes, storeKey, te, ub64 } from "./e2ee/e2ee";
-import { depthEdgesFromLeaves, mlsChildren } from "./functions";
+import { depthEdgesFromLeaves, mlsChildren, stableStringify } from "./functions";
 import { SecretTree } from "./SecretTree";
 
 export class KEMTreeNode {
@@ -114,14 +114,14 @@ export class KEMTreeNode {
         return null;
     }
 
-    async workUpPath(pathSecret: Uint8Array, updatePath = {}) {
-        this.epoch += 1
+    async workUpPath(pathSecret: Uint8Array, updatePath = {}, epoch = this.epoch + 1) {
+        this.epoch = epoch
 
         const { privateKey, publicKey } = await deriveX25519Keypair(pathSecret)
         await storeKey(privateKey, `privateKey_${this.index}_${this.epoch}_${this.threadId}`)
         this.privateKey = privateKey
         this.publicKey = publicKey
-        console.log("pathSecret: ", pathSecret)
+
         const nextPathKey = await hkdfExpandWithLabels(pathSecret, "path", 32)
 
         if (this.parent) {
@@ -135,14 +135,16 @@ export class KEMTreeNode {
                 sibiling = this.parent.right
             }
 
-            const sibilingPublicKey = sibiling.publicKey
             const payload = { nextPathKey: b64(nextPathKey), publicKey: await exportKey(publicKey) }
+            console.log("nextPathKey", nextPathKey)
+            if(sibiling.credential){
+                const sibilingPublicKey = sibiling.publicKey
+                const encryptedPayload = await encryptWithPublicKey(sibilingPublicKey, te.encode(stableStringify(payload)))
+                updatePath["" + sibiling.index] = encryptedPayload
+            }
 
-            const encryptedPayload = await encryptWithPublicKey(sibilingPublicKey, te.encode(JSON.stringify(payload)))
 
-            updatePath["" + sibiling.index] = encryptedPayload
-
-            return await this.parent.workUpPath(nextPathKey, updatePath)
+            return await this.parent.workUpPath(nextPathKey, updatePath, epoch)
         }
         else {
             return updatePath
@@ -216,10 +218,10 @@ export class KEMTreeNode {
         if (this.credential) {
             leafs++;
         }
-        if (this.left?.credential) {
+        if (this.left) {
             leafs += this.left.getNumberOfLeafs()
         }
-        if (this.right?.credential) {
+        if (this.right) {
             leafs += this.right.getNumberOfLeafs()
         }
         return leafs
@@ -302,12 +304,12 @@ export class KEMTreeRoot extends KEMTreeNode {
         const old_init = new Uint8Array(16)
         const commit_secret = crypto.getRandomValues(new Uint8Array(32))
         const tree = await this.getExportable()
-        const treeHash = await sha256Bytes(te.encode(JSON.stringify(tree)))
+        const treeHash = await sha256Bytes(te.encode(stableStringify(tree)))
         const groupContext = {
             epoch: 0,
             treeHash: b64(treeHash),
         }
-        const groupContextStringified = JSON.stringify(groupContext)
+        const groupContextStringified = stableStringify(groupContext)
         const epoch_secret = await hkdfExpandWithLabels(commit_secret, `epoch:${groupContextStringified}`, 32, old_init)
 
         const init_secret = await hkdfExpandWithLabels(commit_secret, `init:${groupContextStringified}`, 16, old_init)
@@ -340,10 +342,10 @@ export class KEMTreeRoot extends KEMTreeNode {
         return kemTreeRoot
     }
 
-    async workUpPath(pathSecret: Uint8Array, updatePath = {}) {
-        console.log("pathSecret Parent: ", pathSecret)
+    async workUpPath(pathSecret: Uint8Array, updatePath = {}, epoch = this.epoch + 1) {
 
-        this.updateEpoch(this.epoch + 1) 
+
+        this.updateEpoch(epoch)
 
         const { privateKey, publicKey } = await deriveX25519Keypair(pathSecret)
         await storeKey(privateKey, `privateKey_${this.index}_${this.epoch}_${this.threadId}`)
@@ -352,15 +354,16 @@ export class KEMTreeRoot extends KEMTreeNode {
         const commit_secret = pathSecret;
         const old_init = this.initSecret;
         const tree = await this.getExportable()
-        console.log(this)
-        console.log(tree)
-        const treeHash = await sha256Bytes(te.encode(JSON.stringify(tree)))
+
+        console.log("pathSecret", pathSecret)
+
+        const treeHash = await sha256Bytes(te.encode(stableStringify(tree)))
         const groupContext = {
             epoch: this.epoch,
             treeHash: b64(treeHash),
         }
-        const groupContextStringified = JSON.stringify(groupContext)
-        console.log(groupContextStringified)
+        const groupContextStringified = stableStringify(groupContext)
+
         const epoch_secret = await hkdfExpandWithLabels(commit_secret, `epoch:${groupContextStringified}`, 32, old_init)
         const init_secret = await hkdfExpandWithLabels(commit_secret, `init:${groupContextStringified}`, 16, old_init)
         const encryption_secret = await hkdfExpandWithLabels(epoch_secret, `encryption`)
@@ -369,6 +372,8 @@ export class KEMTreeRoot extends KEMTreeNode {
         await storeKey(init_secret, `initSecret_${this.epoch}_${this.threadId}`)
         this.encryptionSecret = encryption_secret
         this.initSecret = init_secret
+        console.log("enc", encryption_secret)
+        console.log("int", init_secret)
 
         return updatePath
     }
@@ -438,7 +443,7 @@ export class KEMTree {
 
 
         const updatePath = await node.workUpPath(pathSecret)
-
+        
         const messagePayload = {
             epoch: this.root.epoch,
             updatePath: updatePath,
