@@ -4,14 +4,12 @@ import { UserContext } from "../../lib/context";
 import Image from "next/image";
 import { FaArrowLeft } from "react-icons/fa";
 import {
-  addGroupMember,
   changeGroupName,
   deleteGroupChat,
   getFriends,
   getMembers,
   getSuggestionsFromInput,
   getThreadData,
-  removeGroupMember,
   rotate,
 } from "../../lib/functions";
 import { Member } from "../../components/member";
@@ -96,7 +94,7 @@ export default function SettingsPage() {
             Change Group Name
           </button>
         </div>
-        <h2 className="text-2xl mb-2">Members</h2>
+        {/* <h2 className="text-2xl mb-2">Members</h2>
         {threadData && !threadData.dm ? <>
           {membersData &&
             membersData.map((_item) => (
@@ -140,12 +138,12 @@ export default function SettingsPage() {
               />
             ))}
           </div>
-        </> : ""}
+        </> : ""} */}
         <h2 className="text-2xl my-2">End to End Encryption</h2>
         <button
           className="border border-neutral-400 px-6 rounded text-white font-bold h-12"
           onClick={() =>
-            rotate(threadData, membersData, thread, user, data).then(() =>
+            rotate(user, data, thread).then(() =>
               toast.success("Successfully rotated key")
             )
           }

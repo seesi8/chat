@@ -148,9 +148,9 @@ export default function Thread({ threadId, thread }) {
           <a type="button cursor:pointer" href="" onClick={(e) => { addUser(e) }}>
             <RiUserAddFill className="mr-4" />
           </a>
-          <a type="button" href={`${router.asPath}/call`}>
+          {thread.dm ?  <a type="button" href={`${router.asPath}/call`}>
             <PiPhoneTransferFill className="mr-4" />
-          </a>
+          </a> : <></>}
           {owner && (
             <IoIosSettings
               onClick={(e) => router.push(`/${threadId}/settings`)}
