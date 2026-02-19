@@ -23,7 +23,9 @@ export function Message({ message, messageHandler }) {
   }
   else if (message.type == MessageHandler.MESSAGETYPES.FILE) {
     const blobs = message.messages.map((file) => {
-      console.log(file)
+      if(typeof file == "string"){
+        file = JSON.parse(file)
+      }
       const blob = base64ToBlob(file.content, { type: file.type });
       file.blob = blob
       file.url = window.URL.createObjectURL(blob);
@@ -91,7 +93,9 @@ export function Message({ message, messageHandler }) {
             })}
 
           <p className="text-gray-500 text-xs">
-            {message.read ? `Read ${message.timeRead}` : ""}
+            {message.read ? `Read ${message.timeRead}` : ""} {message.readBy ? `by ${message.readBy.map((user) => {
+              return ` ${user}`
+            })}` : <></>}
           </p>
         </div>
       </> : ""}

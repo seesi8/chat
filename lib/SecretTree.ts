@@ -1,4 +1,5 @@
-import { deleteKey, getStoredKey, hkdfExpandWithLabels, xorBytes, storeKey, importHKDFKey, getStoredMetadata, b64, importAesGcmKey, storeMetadata } from "./e2ee/e2ee";
+import { hkdfExpandWithLabels, xorBytes, importHKDFKey, b64, importAesGcmKey, getCryptoRandomValues } from "./e2ee/e2ee";
+import { deleteKey, storeKey, getStoredMetadata, storeMetadata, getStoredKey } from "./e2ee/indexDB";
 import { KEMTreeNode, KEMTreeRoot } from "./KEMTree";
 
 export class SecretTreeNode {
@@ -167,7 +168,7 @@ export class SecretTreeNode {
         let nonce = await hkdfExpandWithLabels(this.applicationSecret, `nonce:${n}`, 8)
         const nextApplicationSecret = await hkdfExpandWithLabels(this.applicationSecret, "application")
         let nonceFirstFour = nonce.slice(0, 4)
-        const reuse = crypto.getRandomValues(new Uint8Array(4))
+        const reuse = getCryptoRandomValues(new Uint8Array(4))
 
 
 

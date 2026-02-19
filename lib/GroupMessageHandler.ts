@@ -1,5 +1,6 @@
 import { uuidv4 } from "@firebase/util";
-import { b64, checkKeySignature, decryptMLS, decryptWithPrivateKey, deleteKey, encryptMLS, generateAndStoreHPKEKeypair, generateAndStoreX25519Keypair, generateX25519Keypair, getOPK, getStoredFile, getStoredKey, getStoredMessage, getStoredMetadata, hkdfExpand, hkdfExpandWithLabels, hkdfExpandWithSalt, importEd25519PublicRaw, importHKDFKey, importMK, importX25519PublicRaw, sha256Bytes, sign, storeFile, storeHeader, storeKey, storeMessage, storeMetadata, td, te, ub64, verify, xorBytes } from "./e2ee/e2ee";
+import { b64, decryptMLS, decryptWithPrivateKey, encryptMLS, generateX25519Keypair, importEd25519PublicRaw, importX25519PublicRaw, sha256Bytes, sign, td, te, ub64, verify, xorBytes } from "./e2ee/e2ee";
+import { getOPK, getStoredFile, getStoredMessage, getStoredMetadata, storeFile, storeKey, storeMessage, storeMetadata , getStoredKey } from "./e2ee/indexDB";
 import { setDoc, doc, writeBatch, getDoc, query, getDocs, collection, where, limitToLast, limit, updateDoc, QuerySnapshot } from "firebase/firestore";
 import { firestore } from "./firebase"
 import { MessageHandler } from "./MessageHandler";
@@ -9,7 +10,8 @@ import toast from "react-hot-toast";
 import { DocumentData } from "firebase-admin/firestore";
 import { KEMTree } from "./KEMTree";
 import { SecretTree, SecretTreeRoot } from "./SecretTree";
-import { compressImage, deleteStorage, downloadText, formatDate, readFileBytes, stableStringify, uploadText, withinDistance } from "./functions";
+import { compressImage, deleteStorage, downloadText, formatDate, isEqual, readFileBytes, stableStringify, uploadText, withinDistance } from "./functions";
+import AsyncLock from "async-lock";
 
 type MessageType = typeof MessageHandler.MESSAGETYPES[keyof typeof MessageHandler.MESSAGETYPES];
 
@@ -35,6 +37,7 @@ export class GroupMessageHandler {
     kemTree: KEMTree;
     secretTree: SecretTree;
     index: number;
+    drLock: AsyncLock;
 
     constructor(user: any, data: any, threadId: string) {
         if (!user || !data) {
@@ -43,7 +46,10 @@ export class GroupMessageHandler {
         this.user = user
         this.data = data
         this.threadId = threadId
-
+        this.drLock = new AsyncLock({
+            timeout: 20_000,
+            maxPending: 1000,
+        });
     }
 
     static PROPOSALTYPES = {
@@ -135,7 +141,7 @@ export class GroupMessageHandler {
         const otherMembers = members.filter((item) => item.uid != this.user.uid)
 
         for (let otherMember of otherMembers) {
-            this.addUser(otherMember.uid)
+            await this.addUser(otherMember.uid)
         }
 
         return true;
@@ -207,7 +213,7 @@ export class GroupMessageHandler {
                     continue;
                 }
                 if (image) {
-                    await this.sendFile(te.encode(text), MessageHandler.MESSAGETYPES.IMAGE)
+                    await this.sendFileWithLock(te.encode(text), MessageHandler.MESSAGETYPES.IMAGE)
                 }
                 else {
 
@@ -217,7 +223,7 @@ export class GroupMessageHandler {
                         "size": file.size,
                         "content": text
                     }
-                    await this.sendFile(te.encode(stableStringify(info)), MessageHandler.MESSAGETYPES.FILE)
+                    await this.sendFileWithLock(te.encode(stableStringify(info)), MessageHandler.MESSAGETYPES.FILE)
                 }
             }
             if (message) {
@@ -233,10 +239,10 @@ export class GroupMessageHandler {
                         "content": b64Content
                     }
 
-                    await this.sendFile(te.encode(stableStringify(info)), MessageHandler.MESSAGETYPES.FILE)
+                    await this.sendFileWithLock(te.encode(stableStringify(info)), MessageHandler.MESSAGETYPES.FILE)
                 }
                 else {
-                    await this.sendMessage(te.encode(message), MessageHandler.MESSAGETYPES.TEXT)
+                    await this.sendMessageWithLock(te.encode(message), MessageHandler.MESSAGETYPES.TEXT)
                 }
             }
         }
@@ -270,7 +276,7 @@ export class GroupMessageHandler {
         const ikRaw = ub64(keyPackage.credential.identityKey)
         const publicKey = await importEd25519PublicRaw(ikRaw)
         const data = te.encode(stableStringify(keyPackage))
-        const verified = await checkKeySignature(publicKey, data, ub64(signature).buffer)
+        const verified = await verify(publicKey, data, ub64(signature).buffer)
 
         if (!verified) {
             toast.error("Invalid Key Signature")
@@ -289,11 +295,22 @@ export class GroupMessageHandler {
             members: [...this.thread.members, id]
         }
 
-        await this.sendMessageUnencrypted(te.encode(stableStringify({ epoch: this.kemTree.root.epoch + 1, init_id: keyPackageDoc.id, init_secret: b64(this.kemTree.root.initSecret) })), MessageHandler.MESSAGETYPES.UNENCRYPTED_ADDITION)
+        let initSecret = this.kemTree.root.initSecret
+        if (!initSecret) {
+            initSecret = await getStoredKey(`initSecret_${this.kemTree.root.epoch}_${this.kemTree.root.threadId}`)
+            if (initSecret) {
+                this.kemTree.root.initSecret = initSecret
+            }
+        }
+        if (!initSecret) {
+            throw Error(`Missing init secret for epoch ${this.kemTree.root.epoch}`)
+        }
+
+        await this.sendMessageUnencryptedWithLock(te.encode(stableStringify({ epoch: this.kemTree.root.epoch + 1, user: id, init_id: keyPackageDoc.id, init_secret: b64(initSecret) })), MessageHandler.MESSAGETYPES.UNENCRYPTED_ADDITION)
         await updateDoc(doc(firestore, "threads", this.threadId), threadState)
-        await this.startUpdate(false)
         await this.setThread();
         await this.setTrees();
+        await this.startUpdate(false)
     }
 
     async sendMessage(messageBytes: Uint8Array, type: MessageType, options: any = {}) {
@@ -307,6 +324,8 @@ export class GroupMessageHandler {
         const { ciphertext } = await encryptMLS(messageSecrets.sendingKey, messageSecrets.nonce, messageBytes, `${this.user.uid}`)
 
         const n = messageSecrets.n
+
+        console.log("Sending", n)
 
         const header = {
             from: this.user.uid,
@@ -323,7 +342,6 @@ export class GroupMessageHandler {
             header, ciphertext, signature: null, timeSent: timeSent
         }
 
-        console.log(stableStringify({ ...message, timeSent: timeSent.getTime() }))
 
         const signature = await sign(this.data.privateSK, te.encode(stableStringify({ ...message, timeSent: timeSent.getTime() })))
 
@@ -390,10 +408,10 @@ export class GroupMessageHandler {
         const type = header.type
         let storedMessage: any;
 
-        if(MessageHandler.isFileType(type)){
+        if (MessageHandler.isFileType(type)) {
             storedMessage = await getStoredFile(this.threadId, message.id)
         }
-        else{
+        else {
             storedMessage = await getStoredMessage(this.threadId, message.id)
         }
 
@@ -403,7 +421,6 @@ export class GroupMessageHandler {
 
         const fromPublicKey = await importEd25519PublicRaw(ub64(fromUser.publicKeySK))
         const { id: _id, read: _read, ...stableMessage } = { ...message, signature: null, timeSent: message.timeSent.toDate().getTime() }
-        console.log(stableStringify(stableMessage))
         const verified = await verify(fromPublicKey, te.encode(stableStringify(stableMessage)), ub64(signature))
 
 
@@ -425,11 +442,11 @@ export class GroupMessageHandler {
         const messageSecrets = await SecretTreeNode.getReceivingKey(ub64(header.reuseGuard), header.n)
 
         const { plaintext } = await decryptMLS(messageSecrets.receivingKey, messageSecrets.nonce, ub64(ciphertext), from)
-        
-        if(MessageHandler.isFileType(type)){
+
+        if (MessageHandler.isFileType(type)) {
             await storeFile(this.threadId, message.id, plaintext)
         }
-        else{
+        else {
             await storeMessage(this.threadId, message.id, plaintext)
         }
         return { plaintext: plaintext, already: false }
@@ -448,12 +465,23 @@ export class GroupMessageHandler {
         const from = message.header.from
 
         let fromUser = users.find((a: any) => a.id == from)
+        if (!fromUser) {
+            const fromUserDoc = await getDoc(doc(firestore, "users", from))
+            if (!fromUserDoc.exists()) {
+                return;
+            }
+            fromUser = { ...fromUserDoc.data(), id: from }
+        }
 
-        if(MessageHandler.isFileType(type)){
+        if (MessageHandler.isFileType(type)) {
             message.ciphertext = await downloadText(message.ciphertext)
         }
 
         const decryptedMessage = await this.decryptMessage(message, fromUser)
+
+        if (!decryptedMessage.already) {
+            console.log("RECV", message.header.n)
+        }
 
         message.type = type
         message.sentBy = fromUser
@@ -461,21 +489,33 @@ export class GroupMessageHandler {
         if (!decryptedMessage) return;
 
         if (type == MessageHandler.MESSAGETYPES.UNENCRYPTED_ADDITION && !decryptedMessage.already) {
-            const node = this.kemTree.root.findUser(this.user.uid)
             const data = JSON.parse(decryptedMessage.plaintext)
-            await storeMetadata(data["epoch"], `epochJoined_${this.threadId}`)
-            const privateKey = await getOPK(`${data["init_id"]}_init_key`)
-            this.kemTree.root.initSecret = ub64(data["init_secret"])
-            node.setPrivateKey(privateKey)
+            if (data["user"] == this.user.uid) {
+                const node = this.kemTree.root.findUser(this.user.uid)
+                if (!node) {
+                    throw Error(`Could not find local user node in tree for thread ${this.threadId}`)
+                }
+                await storeMetadata(data["epoch"], `epochJoined_${this.threadId}`)
+                const privateKey = await getOPK(`${data["init_id"]}_init_key`)
+                if (!privateKey) {
+                    throw Error(`Missing OPK private key for init package ${data["init_id"]}`)
+                }
+                this.kemTree.root.initSecret = ub64(data["init_secret"])
+                await storeKey(ub64(data["init_secret"]), `initSecret_${data["epoch"]}_${this.kemTree.root.threadId}`)
+                await node.setPrivateKey(privateKey)
+            }
+            else {
+                await storeKey(ub64(data["init_secret"]), `initSecret_${data["epoch"]}_${this.kemTree.root.threadId}`)
+                await this.setThread()
+                await this.setTrees()
+            }
 
         }
         if ((type == MessageHandler.MESSAGETYPES.UPDATE || type == MessageHandler.MESSAGETYPES.UNENCRYPTED_UPDATE) && !decryptedMessage.already) {
-
-            console.log(decryptedMessage, message.header.from)
-
             const updatePayload = JSON.parse(decryptedMessage.plaintext)
             await this.receiveUpdate(updatePayload)
         }
+
 
 
         if (message.type === MessageHandler.MESSAGETYPES.READ) {
@@ -492,10 +532,22 @@ export class GroupMessageHandler {
                 if (finalIndex !== -1) {
                     finalMessages[finalIndex].read = true;
                     finalMessages[finalIndex].timeRead = timeRead;
+                    if (finalMessages[finalIndex].readBy == undefined) {
+                        finalMessages[finalIndex].readBy = [message.sentBy.displayName]
+                    }
+                    else {
+                        finalMessages[finalIndex].readBy.push(message.sentBy.displayName);
+                    }
                 }
                 else if (currentIndex !== -1) {
                     currentMessages[currentIndex].read = true;
                     currentMessages[currentIndex].timeRead = timeRead;
+                    if (currentMessages[currentIndex].readBy == undefined) {
+                        currentMessages[currentIndex].readBy = [message.sentBy.displayName]
+                    } else {
+                        currentMessages[currentIndex].readBy.push(message.sentBy.displayName);
+                    }
+
                 }
             }
 
@@ -525,11 +577,10 @@ export class GroupMessageHandler {
             message.message = JSON.parse(message.message);
         }
 
+
         message.timeSentFormated = formatDate(
             message.timeSent.toDate()
         );
-
-        console.log(message)
 
         return message
     }
@@ -548,6 +599,7 @@ export class GroupMessageHandler {
                     timeRead: messages[i].timeRead,
                     sentBy: messages[i].sentBy,
                     type: messages[i].type,
+                    readBy: messages[i].readBy,
                     callOpen: false,
                 }
                 if (lastCallMessage && messages[i].id == lastCallMessage.id) {
@@ -556,8 +608,14 @@ export class GroupMessageHandler {
                 groupedMessages.push(output);
                 continue
             }
-
-            if (messages[i].sentBy.id == groupedMessages[groupedMessages.length - 1].sentBy.id && messages[i].type == groupedMessages[groupedMessages.length - 1].type && messages[i].read == groupedMessages[groupedMessages.length - 1].read && withinDistance(messages[i].timeSent, groupedMessages[groupedMessages.length - 1].timeSent) && MessageHandler.isGroupableType(messages[i].type)) {
+            if (
+                messages[i].sentBy.id == groupedMessages[groupedMessages.length - 1].sentBy.id
+                && messages[i].type == groupedMessages[groupedMessages.length - 1].type
+                && messages[i].read == groupedMessages[groupedMessages.length - 1].read
+                && isEqual(messages[i].readBy, groupedMessages[groupedMessages.length - 1].readBy)
+                && withinDistance(messages[i].timeSent, groupedMessages[groupedMessages.length - 1].timeSent)
+                && MessageHandler.isGroupableType(messages[i].type)
+            ) {
                 groupedMessages[groupedMessages.length - 1].messages.push(messages[i].message);
                 groupedMessages[groupedMessages.length - 1].timeRead = messages[i].timeRead;
                 groupedMessages[groupedMessages.length - 1].read = messages[i].read;
@@ -572,6 +630,7 @@ export class GroupMessageHandler {
                     timeRead: messages[i].timeRead,
                     sentBy: messages[i].sentBy,
                     type: messages[i].type,
+                    readBy: messages[i].readBy,
                     callOpen: false,
                 }
                 if (lastCallMessage && messages[i].id == lastCallMessage.id) {
@@ -598,23 +657,43 @@ export class GroupMessageHandler {
         const epoch = updatePayload.epoch
         const updatePath = updatePayload.updatePath
         const originIndex = updatePayload.index
+        let applied = false
         for (let indexStr in updatePath) {
             const index = parseInt(indexStr)
             const kemTreeNode = this.kemTree.root.findIndex(index)
-            console.log(updatePath[indexStr])
-
-
+            if (!kemTreeNode) continue
             if (kemTreeNode.findUser(this.user.uid) == null) continue;
             const decryptedPayload: {
                 nextPathKey: Uint8Array<ArrayBuffer>;
                 publicKey: string;
+                for: number;
+                pathPublicKeys?: { [key: string]: string };
             } = JSON.parse(td.decode(await decryptWithPrivateKey(await kemTreeNode.getPrivateKey(), updatePath[indexStr])))
-            console.log(decryptedPayload)
-            const sibilingPublicKey = await importX25519PublicRaw(ub64(decryptedPayload.publicKey))
-            kemTreeNode.getSibiling().publicKey = sibilingPublicKey
+            if (decryptedPayload.pathPublicKeys) {
+                for (const nodeIndexStr in decryptedPayload.pathPublicKeys) {
+                    const pathNode = this.kemTree.root.findIndex(parseInt(nodeIndexStr))
+                    if (!pathNode) continue
+                    pathNode.publicKey = await importX25519PublicRaw(ub64(decryptedPayload.pathPublicKeys[nodeIndexStr]))
+                }
+            }
+            const coPathNode = this.kemTree.root.findIndex(decryptedPayload.for)
+            if (!coPathNode || !coPathNode.parent) continue
+            if (!decryptedPayload.pathPublicKeys) {
+                const directPathPublicKey = await importX25519PublicRaw(ub64(decryptedPayload.publicKey))
+                const directPathNode = coPathNode.parent.left?.index === coPathNode.index
+                    ? coPathNode.parent.right
+                    : coPathNode.parent.left
+                if (!directPathNode) continue
+                directPathNode.publicKey = directPathPublicKey
+            }
 
-            await kemTreeNode.parent.workUpPath(ub64(decryptedPayload.nextPathKey), {}, epoch)
+            await coPathNode.parent.workUpPath(ub64(decryptedPayload.nextPathKey), {}, epoch)
+            applied = true
+            if (!decryptedPayload.pathPublicKeys || decryptedPayload.pathPublicKeys["" + originIndex]) {
+                break
+            }
         }
+        if (!applied) return
 
         this.secretTree.root = await SecretTreeRoot.rebuildTree(this.kemTree.root)
     }
@@ -624,7 +703,6 @@ export class GroupMessageHandler {
 
         const updatePayload = await this.kemTree.getUpdatePayload(KEMTreeNode.index)
         this.secretTree.root = await SecretTreeRoot.rebuildTree(this.kemTree.root)
-
         const tree = await this.kemTree.exportJson()
 
         const treeHash = await sha256Bytes(te.encode(stableStringify(tree)))
@@ -639,13 +717,42 @@ export class GroupMessageHandler {
         if (encrytped) {
             const SecretTreeNode = this.secretTree.root.findIndex(KEMTreeNode.index)
             const sendingKeys = await SecretTreeNode.getSendingKey()
-            await this.sendMessage(te.encode(stableStringify(updatePayload)), MessageHandler.MESSAGETYPES.UPDATE, { messageSecrets: sendingKeys })
+            await this.sendMessageWithLock(te.encode(stableStringify(updatePayload)), MessageHandler.MESSAGETYPES.UPDATE, { messageSecrets: sendingKeys })
         }
         else {
 
-            await this.sendMessageUnencrypted(te.encode(stableStringify(updatePayload)), MessageHandler.MESSAGETYPES.UNENCRYPTED_UPDATE)
+            await this.sendMessageUnencryptedWithLock(te.encode(stableStringify(updatePayload)), MessageHandler.MESSAGETYPES.UNENCRYPTED_UPDATE)
         }
     }
+
+    async handleMessageWithLock(message: any, users: any, currentMessages?: any[], finalMessages?: any[]) {
+        const returnData = await this.drLock.acquire(this.threadId, async () => {
+            return await this.handleMessage(message, users, currentMessages, finalMessages)
+        });
+
+        return returnData
+    };
+
+    async sendMessageWithLock(messageBytes: Uint8Array<ArrayBufferLike>, type: MessageType, options?: any) {
+        const returnData = await this.drLock.acquire(this.threadId, async () => {
+            return await this.sendMessage(messageBytes, type, options)
+        });
+        return returnData
+    };
+
+    async sendFileWithLock(messageBytes: Uint8Array<ArrayBufferLike>, type: MessageType, options?: any) {
+        const returnData = await this.drLock.acquire(this.threadId, async () => {
+            return await this.sendFile(messageBytes, type, options)
+        });
+        return returnData
+    };
+
+    async sendMessageUnencryptedWithLock(messageBytes: Uint8Array<ArrayBufferLike>, type: MessageType, options?: any) {
+        const returnData = await this.drLock.acquire(this.threadId, async () => {
+            return await this.sendMessageUnencrypted(messageBytes, type, options)
+        });
+        return returnData
+    };
 
     async decryptMessages(messagesValue: QuerySnapshot<DocumentData>) {
         const decryptedMessages = []
@@ -664,7 +771,7 @@ export class GroupMessageHandler {
 
 
         for (let data of currentMessages) {
-            const decrypted = await this.handleMessage(data, members, currentMessages, decryptedMessages)
+            const decrypted = await this.handleMessageWithLock(data, members, currentMessages, decryptedMessages)
             if (decrypted) {
                 decryptedMessages.push(decrypted)
             }
@@ -673,7 +780,6 @@ export class GroupMessageHandler {
     }
 
     async test() {
-
         await this.startUpdate(false)
     }
 }
