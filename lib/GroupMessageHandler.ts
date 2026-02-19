@@ -1,7 +1,7 @@
 import { uuidv4 } from "@firebase/util";
 import { b64, decryptMLS, decryptWithPrivateKey, encryptMLS, generateX25519Keypair, importEd25519PublicRaw, importX25519PublicRaw, sha256Bytes, sign, td, te, ub64, verify, xorBytes } from "./e2ee/e2ee";
-import { getOPK, getStoredFile, getStoredMessage, getStoredMetadata, storeFile, storeKey, storeMessage, storeMetadata , getStoredKey } from "./e2ee/indexDB";
-import { setDoc, doc, writeBatch, getDoc, query, getDocs, collection, where, limitToLast, limit, updateDoc, QuerySnapshot } from "firebase/firestore";
+import { getOPK, getStoredFile, getStoredMessage, getStoredMetadata, storeFile, storeKey, storeMessage, storeMetadata, getStoredKey } from "./e2ee/indexDB";
+import { setDoc, doc, writeBatch, getDoc, query, getDocs, collection, where, limitToLast, limit, updateDoc, QuerySnapshot, deleteDoc } from "firebase/firestore";
 import { firestore } from "./firebase"
 import { MessageHandler } from "./MessageHandler";
 import { GoogleAuthProvider } from "firebase/auth";
@@ -10,7 +10,7 @@ import toast from "react-hot-toast";
 import { DocumentData } from "firebase-admin/firestore";
 import { KEMTree } from "./KEMTree";
 import { SecretTree, SecretTreeRoot } from "./SecretTree";
-import { compressImage, deleteStorage, downloadText, formatDate, isEqual, readFileBytes, stableStringify, uploadText, withinDistance } from "./functions";
+import { compressImage, deleteStorage, downloadText, formatDate, generateKeyPackages, isEqual, readFileBytes, stableStringify, uploadText, withinDistance } from "./functions";
 import AsyncLock from "async-lock";
 
 type MessageType = typeof MessageHandler.MESSAGETYPES[keyof typeof MessageHandler.MESSAGETYPES];
@@ -253,13 +253,22 @@ export class GroupMessageHandler {
         }
     }
 
-    async addUser(id: string) {
+    async getKeyPackage(id: string) {
         let keyPackageDoc = (await getDocs(query(
             collection(firestore, "users", id, "keyPackages"),
             limit(1)
         ))).docs[0]
 
+        const keyPackageDocId = keyPackageDoc.id
         let keyPackage = keyPackageDoc.data()
+
+        await deleteDoc(doc(firestore, "users", id, "keyPackages", keyPackageDocId))
+
+        return { keyPackage, keyPackageDocId }
+    }
+
+    async addUser(id: string) {
+        let { keyPackage, keyPackageDocId } = await this.getKeyPackage(id)
 
         const signature = keyPackage.signature
 
@@ -306,7 +315,7 @@ export class GroupMessageHandler {
             throw Error(`Missing init secret for epoch ${this.kemTree.root.epoch}`)
         }
 
-        await this.sendMessageUnencryptedWithLock(te.encode(stableStringify({ epoch: this.kemTree.root.epoch + 1, user: id, init_id: keyPackageDoc.id, init_secret: b64(initSecret) })), MessageHandler.MESSAGETYPES.UNENCRYPTED_ADDITION)
+        await this.sendMessageUnencryptedWithLock(te.encode(stableStringify({ epoch: this.kemTree.root.epoch + 1, user: id, init_id: keyPackageDocId, init_secret: b64(initSecret) })), MessageHandler.MESSAGETYPES.UNENCRYPTED_ADDITION)
         await updateDoc(doc(firestore, "threads", this.threadId), threadState)
         await this.setThread();
         await this.setTrees();
@@ -503,6 +512,7 @@ export class GroupMessageHandler {
                 this.kemTree.root.initSecret = ub64(data["init_secret"])
                 await storeKey(ub64(data["init_secret"]), `initSecret_${data["epoch"]}_${this.kemTree.root.threadId}`)
                 await node.setPrivateKey(privateKey)
+                await generateKeyPackages(this.user, this.data, 1)
             }
             else {
                 await storeKey(ub64(data["init_secret"]), `initSecret_${data["epoch"]}_${this.kemTree.root.threadId}`)
@@ -783,3 +793,4 @@ export class GroupMessageHandler {
         await this.startUpdate(false)
     }
 }
+ 
