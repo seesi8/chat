@@ -421,7 +421,7 @@ export class KEMTreeRoot extends KEMTreeNode {
     async workUpPath(pathSecret: Uint8Array, updatePath = {}, epoch = this.epoch + 1, _directPathPublicKeys: { [key: string]: string } = {}) {
 
         const previousEpoch = this.epoch
-        const old_init = await this.getInitSecret(previousEpoch);
+        const old_init = await this.getInitSecret(epoch);
         if (!old_init) {
             throw Error(`Missing init secret for epoch ${previousEpoch}`)
         }
@@ -443,6 +443,7 @@ export class KEMTreeRoot extends KEMTreeNode {
         const groupContextStringified = stableStringify(groupContext)
         console.log("commit_secret", commit_secret)
         console.log(groupContextStringified)
+        console.log("old_init", old_init)
         const epoch_secret = await hkdfExpandWithLabels(commit_secret, `epoch:${groupContextStringified}`, 32, old_init)
         console.log("epoch_secret", epoch_secret)
         const init_secret = await hkdfExpandWithLabels(commit_secret, `init:${groupContextStringified}`, 16, old_init)
