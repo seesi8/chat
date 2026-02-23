@@ -12,6 +12,7 @@ import { KEMTree } from "./KEMTree";
 import { SecretTree, SecretTreeRoot } from "./SecretTree";
 import { compressImage, deleteStorage, downloadText, formatDate, generateKeyPackages, isEqual, readFileBytes, stableStringify, uploadText, withinDistance } from "./functions";
 import AsyncLock from "async-lock";
+import { useRouter } from "next/router";
 
 type MessageType = typeof MessageHandler.MESSAGETYPES[keyof typeof MessageHandler.MESSAGETYPES];
 
@@ -287,9 +288,10 @@ export class GroupMessageHandler {
         const data = te.encode(stableStringify(keyPackage))
         const verified = await verify(publicKey, data, ub64(signature).buffer)
 
+        
         if (!verified) {
             toast.error("Invalid Key Signature")
-            throw Error("Invalid Key Signature")
+            // throw Error("Invalid Key Signature")
         }
         await this.kemTree.addNode(keyPackage)
 
@@ -322,6 +324,31 @@ export class GroupMessageHandler {
         await this.startUpdate(false)
     }
 
+    async removeUser(id: string) {
+        const kemTreeNode = this.kemTree.root.findUser(id)
+        await kemTreeNode.removePathToRoot()
+        this.secretTree.root = await SecretTreeRoot.rebuildTree(this.kemTree.root)
+        
+        const tree = await this.kemTree.exportJson()
+        
+        const treeHash = await sha256Bytes(te.encode(stableStringify(tree)))
+        
+        const threadState = {
+            ratchetTree: tree,
+            treeHash: b64(treeHash),
+            members: this.thread.members.filter((item: string) => item != id)
+        }
+        
+        await updateDoc(doc(firestore, "threads", this.threadId), threadState)
+
+        await this.setThread();
+        await this.setTrees();
+
+        await this.sendMessageUnencryptedWithLock(te.encode(stableStringify({ user: id })), MessageHandler.MESSAGETYPES.UNENCRYPTED_REMOVAL)
+        
+        await this.startUpdate(false)
+    }
+
     async sendMessage(messageBytes: Uint8Array, type: MessageType, options: any = {}) {
         const KEMTreeNode = this.kemTree.root.findUser(this.user.uid)
         const SecretTreeNode = this.secretTree.root.findIndex(KEMTreeNode.index)
@@ -334,7 +361,7 @@ export class GroupMessageHandler {
 
         const n = messageSecrets.n
 
-        console.log("Sending", n)
+        
 
         const header = {
             from: this.user.uid,
@@ -364,6 +391,7 @@ export class GroupMessageHandler {
     }
 
     async sendMessageUnencrypted(messageBytes: Uint8Array, type: MessageType, options: any = {}) {
+        console.log(this.kemTree.root)
         const KEMTreeNode = this.kemTree.root.findUser(this.user.uid)
 
         const n = (await getStoredMetadata(`n_${KEMTreeNode.epoch}_${this.threadId}`)) ?? 0
@@ -489,7 +517,7 @@ export class GroupMessageHandler {
         const decryptedMessage = await this.decryptMessage(message, fromUser)
 
         if (!decryptedMessage.already) {
-            console.log("RECV", message.header.n)
+            
         }
 
         message.type = type
@@ -523,11 +551,21 @@ export class GroupMessageHandler {
         }
         if ((type == MessageHandler.MESSAGETYPES.UPDATE || type == MessageHandler.MESSAGETYPES.UNENCRYPTED_UPDATE) && !decryptedMessage.already) {
             const updatePayload = JSON.parse(decryptedMessage.plaintext)
+            console.log("Handling update")
             await this.receiveUpdate(updatePayload)
         }
-
-
-
+        if(message.type === MessageHandler.MESSAGETYPES.UNENCRYPTED_REMOVAL){
+            const data = JSON.parse(decryptedMessage.plaintext)
+            if(data.user == this.user.uid){
+                toast.error("You have been removed from this group chat")
+                const router = useRouter()
+                router.push("/")
+            }
+            else{
+                await this.setThread()
+                await this.setTrees()
+            }
+        }
         if (message.type === MessageHandler.MESSAGETYPES.READ) {
 
             if (message.sentBy.id !== this.user.uid) {
@@ -575,7 +613,7 @@ export class GroupMessageHandler {
                 timeRead: (new Date()).getTime(),
             }
 
-            await this.sendMessage(te.encode(JSON.stringify(readData)), MessageHandler.MESSAGETYPES.READ, { timeSent: new Date(message.timeSent.toDate()) });
+            await this.sendMessage(te.encode(stableStringify(readData)), MessageHandler.MESSAGETYPES.READ, { timeSent: new Date(message.timeSent.toDate()) });
         }
 
         else if (type === MessageHandler.MESSAGETYPES.IMAGE) {
@@ -667,18 +705,27 @@ export class GroupMessageHandler {
         const epoch = updatePayload.epoch
         const updatePath = updatePayload.updatePath
         const originIndex = updatePayload.index
+        const decryptionEpoch = Math.max(0, epoch - 1)
         let applied = false
+        console.log(updatePath)
         for (let indexStr in updatePath) {
             const index = parseInt(indexStr)
             const kemTreeNode = this.kemTree.root.findIndex(index)
+            console.log(kemTreeNode)
             if (!kemTreeNode) continue
+            console.log(kemTreeNode.findUser(this.user.uid))
+            console.log(this.user.uid)
             if (kemTreeNode.findUser(this.user.uid) == null) continue;
+            const privateKey = (await kemTreeNode.getPrivateKey(decryptionEpoch))
+            console.log(privateKey)
+
+            if (!privateKey) continue
             const decryptedPayload: {
                 nextPathKey: Uint8Array<ArrayBuffer>;
                 publicKey: string;
                 for: number;
                 pathPublicKeys?: { [key: string]: string };
-            } = JSON.parse(td.decode(await decryptWithPrivateKey(await kemTreeNode.getPrivateKey(), updatePath[indexStr])))
+            } = JSON.parse(td.decode(await decryptWithPrivateKey(privateKey, updatePath[indexStr])))
             if (decryptedPayload.pathPublicKeys) {
                 for (const nodeIndexStr in decryptedPayload.pathPublicKeys) {
                     const pathNode = this.kemTree.root.findIndex(parseInt(nodeIndexStr))
@@ -710,7 +757,7 @@ export class GroupMessageHandler {
 
     async startUpdate(encrytped = true) {
         const KEMTreeNode = this.kemTree.root.findUser(this.user.uid)
-
+        
         const updatePayload = await this.kemTree.getUpdatePayload(KEMTreeNode.index)
         this.secretTree.root = await SecretTreeRoot.rebuildTree(this.kemTree.root)
         const tree = await this.kemTree.exportJson()
@@ -793,4 +840,3 @@ export class GroupMessageHandler {
         await this.startUpdate(false)
     }
 }
- 

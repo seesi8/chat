@@ -3,6 +3,24 @@ import { deleteKey, storeKey, getStoredKey } from "./e2ee/indexDB";
 import { depthEdgesFromLeaves, mlsChildren, stableStringify } from "./functions";
 import { SecretTree } from "./SecretTree";
 
+async function getPrivateKeyAtOrBeforeEpoch(index: number, epoch: number, threadId: string): Promise<CryptoKey | null> {
+    const maxEpoch = Math.max(0, epoch)
+    for (let currentEpoch = maxEpoch; currentEpoch >= 0; currentEpoch--) {
+        const key = (await getStoredKey(`privateKey_${index}_${currentEpoch}_${threadId}`)) ?? null
+        if (key) return key
+    }
+    return null
+}
+
+async function getSecretAtOrBeforeEpoch(prefix: "initSecret" | "encryptionSecret", epoch: number, threadId: string): Promise<Uint8Array | null> {
+    const maxEpoch = Math.max(0, epoch)
+    for (let currentEpoch = maxEpoch; currentEpoch >= 0; currentEpoch--) {
+        const secret = (await getStoredKey(`${prefix}_${currentEpoch}_${threadId}`)) ?? null
+        if (secret) return secret
+    }
+    return null
+}
+
 export class KEMTreeNode {
     public publicKey?: CryptoKey | null = null;
     public privateKey?: CryptoKey | null = null;
@@ -46,7 +64,7 @@ export class KEMTreeNode {
         credential?: { user: string, identityKey: string };
         epoch: number;
     }) {
-        const privateKey = await getStoredKey(`privateKey_${args.index}_${args.epoch}_${args.threadId}`) ?? null
+        const privateKey = await getPrivateKeyAtOrBeforeEpoch(args.index, args.epoch, args.threadId)
 
         return new KEMTreeNode({ ...args, privateKey })
     }
@@ -54,7 +72,7 @@ export class KEMTreeNode {
     static async createFromJson(json: any, parent: KEMTreeNode | null = null): Promise<KEMTreeNode> {
         const index = json.index;
         const threadId = json.threadId;
-        const privateKey = await getStoredKey(`privateKey_${index}_${json.epoch}_${threadId}`) ?? null
+        const privateKey = await getPrivateKeyAtOrBeforeEpoch(index, json.epoch, threadId)
         const publicKey = await importX25519PublicRaw(ub64(json.publicKey))
         const credential = json.credential ?? null;
         const kemTreeNode = new KEMTreeNode({ index, publicKey, privateKey, threadId, credential, epoch: json.epoch, parent: parent })
@@ -118,7 +136,7 @@ export class KEMTreeNode {
     getCoChild() {
         let sibling: KEMTreeNode | undefined;
 
-        if (!this.parent) return {nodes: [], sibiling: null};
+        if (!this.parent) return { nodes: [], sibiling: null };
 
         if (this.index > this.parent.index) {
             // I am right child
@@ -128,7 +146,7 @@ export class KEMTreeNode {
             sibling = this.parent.right;
         }
 
-        if (!sibling) return {nodes: [], sibiling: null};
+        if (!sibling) return { nodes: [], sibiling: null };
 
         const collectCoverNodes = (node?: KEMTreeNode): KEMTreeNode[] => {
             if (!node) return [];
@@ -143,7 +161,7 @@ export class KEMTreeNode {
             return [...leftHits, ...rightHits];
         };
 
-        return {nodes: collectCoverNodes(sibling), sibiling: sibling.index};
+        return { nodes: collectCoverNodes(sibling), sibiling: sibling.index };
     }
 
 
@@ -154,7 +172,7 @@ export class KEMTreeNode {
         directPathPublicKeys: { [key: string]: string } = {}
     ) {
         this.epoch = epoch
-                        const { privateKey, publicKey } = await deriveX25519Keypair(pathSecret)
+        const { privateKey, publicKey } = await deriveX25519Keypair(pathSecret)
         await storeKey(privateKey, `privateKey_${this.index}_${this.epoch}_${this.threadId}`)
         this.privateKey = privateKey
         this.publicKey = publicKey
@@ -172,7 +190,7 @@ export class KEMTreeNode {
                 for: siblings.sibiling,
                 pathPublicKeys: { ...directPathPublicKeys }
             };
-                        for (const node of siblings.nodes) {
+            for (const node of siblings.nodes) {
                 const nodePublicKey = node.publicKey; // guaranteed by getCoChild()
                 const encryptedPayload = await encryptWithPublicKey(
                     nodePublicKey,
@@ -204,12 +222,10 @@ export class KEMTreeNode {
         return null
     }
 
-    async getPrivateKey() {
-        const privateKey = (await getStoredKey(`privateKey_${this.index}_${this.epoch}_${this.threadId}`)) ?? null
-
-
-
-        return this.privateKey ?? privateKey
+    async getPrivateKey(epoch: number = this.epoch) {
+        const privateKey = await getPrivateKeyAtOrBeforeEpoch(this.index, epoch, this.threadId)
+        if (privateKey) this.privateKey = privateKey
+        return privateKey ?? this.privateKey ?? null
     }
 
     findUser(userId: string): KEMTreeNode | null {
@@ -302,6 +318,17 @@ export class KEMTreeNode {
         ]);
     }
 
+    async removePathToRoot() {
+        this.credential = null
+        this.privateKey = null
+        this.publicKey = null
+        await deleteKey(`privateKey_${this.index}_${this.epoch}_${this.threadId}`)
+        await deleteKey(`publicKey_${this.index}_${this.epoch}_${this.threadId}`)
+
+        if (this.parent) {
+            await this.parent.removePathToRoot()
+        }
+    }
 }
 
 export class KEMTreeRoot extends KEMTreeNode {
@@ -336,6 +363,19 @@ export class KEMTreeRoot extends KEMTreeNode {
         }
     }
 
+    async removePathToRoot() {
+        this.credential = null
+        this.privateKey = null
+        this.publicKey = null
+
+        // this.initSecret = null
+        // this.encryptionSecret = null
+        await deleteKey(`privateKey_${this.index}_${this.epoch}_${this.threadId}`)
+        await deleteKey(`publicKey_${this.index}_${this.epoch}_${this.threadId}`)
+        // await deleteKey(`encryptionSecret_${this.epoch}_${this.threadId}`)
+        // await deleteKey(`initSecret_${this.epoch}_${this.threadId}`)
+    }
+
     async generateFirstTimeSecrets() {
         const old_init = new Uint8Array(16)
         const commit_secret = getCryptoRandomValues(new Uint8Array(32))
@@ -362,9 +402,9 @@ export class KEMTreeRoot extends KEMTreeNode {
         const index = json.index;
         const publicKey = await importX25519PublicRaw(ub64(json.publicKey));
         const threadId = json.threadId;
-        const initSecret = await getStoredKey(`initSecret_${json.epoch}_${threadId}`)
-        const encryptionSecret = await getStoredKey(`encryptionSecret_${json.epoch}_${threadId}`)
-        const privateKey = await getStoredKey(`privateKey_${index}_${json.epoch}_${threadId}`)
+        const initSecret = await getSecretAtOrBeforeEpoch("initSecret", json.epoch, threadId)
+        const encryptionSecret = await getSecretAtOrBeforeEpoch("encryptionSecret", json.epoch, threadId)
+        const privateKey = await getPrivateKeyAtOrBeforeEpoch(index, json.epoch, threadId)
 
         const kemTreeRoot = new KEMTreeRoot({ index, publicKey, privateKey, threadId, epoch: json.epoch, credential: json.credential })
 
@@ -380,6 +420,11 @@ export class KEMTreeRoot extends KEMTreeNode {
 
     async workUpPath(pathSecret: Uint8Array, updatePath = {}, epoch = this.epoch + 1, _directPathPublicKeys: { [key: string]: string } = {}) {
 
+        const previousEpoch = this.epoch
+        const old_init = await this.getInitSecret(previousEpoch);
+        if (!old_init) {
+            throw Error(`Missing init secret for epoch ${previousEpoch}`)
+        }
 
         this.updateEpoch(epoch)
 
@@ -388,22 +433,41 @@ export class KEMTreeRoot extends KEMTreeNode {
         this.privateKey = privateKey
         this.publicKey = publicKey
         const commit_secret = pathSecret;
-        const old_init = this.initSecret;
         const tree = await this.getExportable()
-                const treeHash = await sha256Bytes(te.encode(stableStringify(tree)))
+        console.log("tree", tree)
+        const treeHash = await sha256Bytes(te.encode(stableStringify(tree)))
         const groupContext = {
             epoch: this.epoch,
             treeHash: b64(treeHash),
         }
         const groupContextStringified = stableStringify(groupContext)
-                const epoch_secret = await hkdfExpandWithLabels(commit_secret, `epoch:${groupContextStringified}`, 32, old_init)
+        console.log("commit_secret", commit_secret)
+        console.log(groupContextStringified)
+        const epoch_secret = await hkdfExpandWithLabels(commit_secret, `epoch:${groupContextStringified}`, 32, old_init)
+        console.log("epoch_secret", epoch_secret)
         const init_secret = await hkdfExpandWithLabels(commit_secret, `init:${groupContextStringified}`, 16, old_init)
         const encryption_secret = await hkdfExpandWithLabels(epoch_secret, `encryption`)
-                                await storeKey(encryption_secret, `encryptionSecret_${this.epoch}_${this.threadId}`)
+        await storeKey(encryption_secret, `encryptionSecret_${this.epoch}_${this.threadId}`)
         await storeKey(init_secret, `initSecret_${this.epoch}_${this.threadId}`)
         this.encryptionSecret = encryption_secret
         this.initSecret = init_secret
         return updatePath
+    }
+
+    async getInitSecret(epoch: number = this.epoch) {
+        let initSecret = await getStoredKey(`initSecret_${epoch}_${this.threadId}`)
+        if (!initSecret) {
+            initSecret = await getSecretAtOrBeforeEpoch("initSecret", epoch, this.threadId)
+        }
+        if (initSecret) {
+            if (initSecret != this.initSecret) {
+                this.initSecret = initSecret
+            }
+        } else if (this.initSecret) {
+            await storeKey(this.initSecret, `initSecret_${epoch}_${this.threadId}`)
+            initSecret = this.initSecret
+        }
+        return initSecret
     }
 
     async asNode() {

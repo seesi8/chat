@@ -26,12 +26,10 @@ export function Member({
         type="button"
         onClick={() =>
           removeGroupMember(
-            item.uid,
-            threadData,
-            thread,
-            membersData,
             user,
-            data
+            data,
+            thread,
+            item.uid,
           ).then((newMembers) => {
             setMembersData(newMembers);
           })
